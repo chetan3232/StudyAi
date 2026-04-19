@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+:root {
+  --neon-cyan: #00f2ff;
+  --neon-purple: #a855f7;
+  --neon-lime: #22c55e;
+  --neon-pink: #ec4899;
+  --bg-color: #050505;
+  --surface-color: #0f0f0f;
+  --border-color: #1a1a1a;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --text-subtle: #3f3f46;
+}
+
+.light {
+  --neon-cyan: #0284c7;
+  --neon-purple: #7c3aed;
+  --neon-lime: #16a34a;
+  --neon-pink: #db2777;
+  --bg-color: #ffffff;
+  --surface-color: #f9fafb;
+  --border-color: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
+}
+
+.warm {
+  --neon-cyan: #ff6a00;
+  --neon-purple: #ea580c;
+  --neon-lime: #84cc16;
+  --neon-pink: #be185d;
+  --bg-color: #fdfbf7;
+  --surface-color: #ffffff;
+  --border-color: #f3f4f1;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --text-subtle: #9ca3af;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-neon-cyan: var(--neon-cyan);
+  --color-neon-purple: var(--neon-purple);
+  --color-neon-lime: var(--neon-lime);
+  --color-neon-pink: var(--neon-pink);
+  
+  --color-dark-bg: var(--bg-color);
+  --color-dark-surface: var(--surface-color);
+  --color-dark-border: var(--border-color);
+  --color-dark-bg-text: var(--text-primary);
+  --color-dark-bg-muted: var(--text-secondary);
+  --color-dark-bg-subtle: var(--text-muted);
+  --color-dark-bg-dim: var(--text-subtle);
+}
+
+@layer base {
+  body {
+    @apply bg-dark-bg antialiased selection:bg-neon-cyan/30;
+    color: var(--text-primary);
+    font-family: "Inter", var(--font-sans);
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-dark-surface/50 backdrop-blur-xl border border-dark-border rounded-[20px] shadow-sm;
+  }
+  
+  .premium-badge {
+    @apply px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20;
+  }
+  
+  .neon-glow-cyan {
+    @apply shadow-[0_0_15px_rgba(0,242,255,0.2)];
+  }
+
+  .neon-glow-purple {
+    @apply shadow-[0_0_15px_rgba(188,19,254,0.2)];
+  }
+
+  .neon-border-cyan {
+    @apply border-neon-cyan/50 hover:border-neon-cyan transition-colors duration-300;
+  }
+
+  .btn-primary {
+    @apply bg-neon-cyan text-black font-bold py-2 px-4 rounded-lg hover:bg-neon-cyan/90 transition-all active:scale-95;
+  }
+
+  .nav-item-active {
+    @apply bg-neon-cyan/10 text-neon-cyan border-l-4 border-neon-cyan;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-dark-bg;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-dark-border rounded-full hover:bg-gray-700;
+}

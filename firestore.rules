@@ -1,0 +1,303 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - name: string (required) - User's display name
+    //   - email: string (required, email) - User's email
+    //   - examDate: string (optional, date) - Target exam date
+    //   - targetExam: string (optional) - Target exam or goal (e.g., NEET, UPSC)
+    //   - subscriptionTier: string (required, enum free|pro)
+    //
+    // Collection: users/{userId}/subjects
+    // Document ID: {subjectId}
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required)
+    //   - name: string (required)
+    //   - priority: number (required, enum 1-3)
+    //   - difficulty: number (required, enum 1-3)
+    //   - order: number (optional)
+    //
+    // Collection: users/{userId}/mentor_chat
+    // Document ID: history
+    // Fields:
+    //   - messages: list (required)
+    //
+    // Collection: users/{userId}/logs
+    // Document ID: {logId}
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required)
+    //   - subjectId: string (required)
+    //   - duration: number (required)
+    //   - date: string (required, date-time)
+    //
+    // Collection: users/{userId}/plans
+    // Document ID: {planId} (YYYY-MM-DD)
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required)
+    //   - date: string (required, date)
+    //   - tasks: list (required)
+    //   - updatedAt: string (optional, date-time)
+    //
+    // Collection: users/{userId}/analytics
+    // Document ID: main
+    // Fields:
+    //   - performanceScore: number (required)
+    //   - weakAreas: list (required)
+    //   - predictiveReadiness: number (optional)
+    //
+    // Collection: users/{userId}/reminders
+    // Document ID: {reminderId}
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required)
+    //   - title: string (required)
+    //   - time: string (required)
+    //   - days: list (required)
+    //   - isActive: boolean (required)
+    //   - subjectId: string (optional)
+    //
+    // Collection: system/metrics/daily
+    // Document ID: {date}
+    // Fields:
+    //   - dau: number (required)
+    //   - totalStudyTime: number (required)
+    //   - date: string (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'name', 'email', 'subscriptionTier']) &&
+             hasOnlyAllowedFields(['uid', 'name', 'email', 'examDate', 'targetExam', 'subscriptionTier']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && isValidEmail(data.email) &&
+             data.subscriptionTier in ['free', 'pro'] &&
+             (!('examDate' in data) || (data.examDate is string && data.examDate.size() > 0)) &&
+             (!('targetExam' in data) || (data.targetExam is string && data.targetExam.size() <= 100));
+    }
+
+    function isValidSubject(data) {
+      return hasRequiredFields(['id', 'userId', 'name', 'priority', 'difficulty']) &&
+             hasOnlyAllowedFields(['id', 'userId', 'name', 'priority', 'difficulty', 'notes', 'masteryScore', 'order']) &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.priority is number && data.priority in [1, 2, 3] &&
+             data.difficulty is number && data.difficulty in [1, 2, 3] &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() < 10000)) &&
+             (!('masteryScore' in data) || (data.masteryScore is number && data.masteryScore >= 0 && data.masteryScore <= 100)) &&
+             (!('order' in data) || data.order is number);
+    }
+
+    function isValidMentorChat(data) {
+      return hasRequiredFields(['messages']) &&
+             hasOnlyAllowedFields(['messages']) &&
+             data.messages is list && data.messages.size() < 500;
+    }
+
+    function isValidLog(data) {
+      return hasRequiredFields(['id', 'userId', 'subjectId', 'duration', 'date']) &&
+             hasOnlyAllowedFields(['id', 'userId', 'subjectId', 'duration', 'date']) &&
+             data.userId == request.auth.uid &&
+             data.duration is number && data.duration > 0 &&
+             data.date is string;
+    }
+
+    function isValidPlan(data) {
+      return hasRequiredFields(['id', 'userId', 'date', 'tasks']) &&
+             hasOnlyAllowedFields(['id', 'userId', 'date', 'tasks', 'updatedAt']) &&
+             data.userId == request.auth.uid &&
+             data.date is string &&
+             data.tasks is list &&
+             (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    function isValidAnalytics(data) {
+      return hasRequiredFields(['performanceScore', 'weakAreas']) &&
+             hasOnlyAllowedFields(['performanceScore', 'weakAreas', 'predictiveReadiness']) &&
+             data.performanceScore is number &&
+             data.weakAreas is list &&
+             (!('predictiveReadiness' in data) || data.predictiveReadiness is number);
+    }
+
+    function isValidReminder(data) {
+      return hasRequiredFields(['id', 'userId', 'title', 'time', 'days', 'isActive']) &&
+             hasOnlyAllowedFields(['id', 'userId', 'title', 'time', 'days', 'isActive', 'subjectId']) &&
+             data.userId == request.auth.uid &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.time is string && data.time.size() == 5 &&
+             data.days is list && data.days.size() <= 7 &&
+             data.isActive is bool &&
+             (!('subjectId' in data) || data.subjectId == null || data.subjectId is string);
+    }
+
+    function isValidGroup(data) {
+      return hasRequiredFields(['id', 'name', 'createdBy', 'createdAt', 'members', 'adminIds']) &&
+             hasOnlyAllowedFields(['id', 'name', 'description', 'createdBy', 'createdAt', 'members', 'adminIds']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.members is list &&
+             data.adminIds is list;
+    }
+
+    function isValidGroupCreate(data) {
+      return isValidGroup(data) &&
+             data.createdBy == request.auth.uid &&
+             request.auth.uid in data.members &&
+             request.auth.uid in data.adminIds;
+    }
+
+    function isValidGroupMessage(data) {
+      return hasRequiredFields(['id', 'senderId', 'senderName', 'content', 'timestamp']) &&
+             hasOnlyAllowedFields(['id', 'senderId', 'senderName', 'content', 'timestamp']) &&
+             data.senderId == request.auth.uid &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 5000;
+    }
+
+    function isValidGroupObjective(data) {
+      return hasRequiredFields(['id', 'title', 'completed', 'createdAt']) &&
+             hasOnlyAllowedFields(['id', 'title', 'completed', 'createdAt', 'completedBy']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "gamerchetan323@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+      allow delete: if false; // Users cannot delete their own profile for now
+
+      match /subjects/{subjectId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidSubject(request.resource.data);
+        allow update: if isOwner(userId) && isValidSubject(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /logs/{logId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidLog(request.resource.data);
+        allow update: if isOwner(userId) && isValidLog(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /plans/{planId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidPlan(request.resource.data);
+        allow update: if isOwner(userId) && isValidPlan(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /analytics/{analyticsId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidAnalytics(request.resource.data);
+        allow update: if isOwner(userId) && isValidAnalytics(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /reminders/{reminderId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidReminder(request.resource.data);
+        allow update: if isOwner(userId) && isValidReminder(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /mentor_chat/{chatId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidMentorChat(request.resource.data);
+        allow update: if isOwner(userId) && isValidMentorChat(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+    match /groups/{groupId} {
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.members);
+      allow create: if isAuthenticated() && isValidGroupCreate(request.resource.data);
+      allow update: if isAuthenticated() && (request.auth.uid in resource.data.members) && 
+                    (
+                      // Admin can update group (invite, remove, promote, rename)
+                      (request.auth.uid in resource.data.adminIds && isValidGroup(request.resource.data)) ||
+                      // Member can only leave the group
+                      (
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'adminIds']) &&
+                        !(request.auth.uid in request.resource.data.members) &&
+                        !(request.auth.uid in request.resource.data.adminIds)
+                      )
+                    );
+      allow delete: if isAuthenticated() && (request.auth.uid in resource.data.adminIds);
+
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members);
+        allow create: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members) && isValidGroupMessage(request.resource.data);
+        allow update, delete: if false;
+      }
+
+      match /objectives/{objectiveId} {
+        allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members);
+        allow create, update: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members) && isValidGroupObjective(request.resource.data);
+        allow delete: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.adminIds);
+      }
+    }
+
+    match /users/{userId}/stats/{statId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /system/metrics/daily/{date} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /_system_/connectivity_probe {
+      allow read: if true;
+    }
+  }
+}

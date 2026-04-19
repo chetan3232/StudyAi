@@ -1,0 +1,195 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a student using the app.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "name": { "type": "string", "description": "User's display name" },
+        "email": { "type": "string", "format": "email", "description": "User's email" },
+        "examDate": { "type": "string", "format": "date", "description": "Target exam date" },
+        "targetExam": { "type": "string", "description": "Target exam or goal (e.g., NEET, UPSC)" },
+        "subscriptionTier": { "type": "string", "enum": ["free", "pro"], "description": "User's monetization tier" }
+      },
+      "required": ["uid", "name", "email", "subscriptionTier"]
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "A subject the user is studying.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "priority": { "type": "number", "enum": [1, 2, 3] },
+        "difficulty": { "type": "number", "enum": [1, 2, 3] },
+        "notes": { "type": "string" },
+        "masteryScore": { "type": "number" },
+        "order": { "type": "number", "description": "Custom order for drag-and-drop" }
+      },
+      "required": ["id", "userId", "name"]
+    },
+    "StudyLog": {
+      "title": "StudyLog",
+      "description": "Record of a study session.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "duration": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "subjectId", "duration", "date"]
+    },
+    "DailyPlan": {
+      "title": "DailyPlan",
+      "description": "A daily study plan with tasks.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "tasks": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "date", "tasks"]
+    },
+    "Analytics": {
+      "title": "Analytics",
+      "description": "User performance analytics.",
+      "type": "object",
+      "properties": {
+        "performanceScore": { "type": "number" },
+        "weakAreas": { "type": "array", "items": { "type": "string" } },
+        "predictiveReadiness": { "type": "number", "description": "Pro feature: AI predicted exam readiness" }
+      },
+      "required": ["performanceScore", "weakAreas"]
+    },
+    "SystemMetrics": {
+      "title": "SystemMetrics",
+      "description": "Global success metrics for the platform.",
+      "type": "object",
+      "properties": {
+        "dau": { "type": "number" },
+        "totalStudyTime": { "type": "number" },
+        "retentionRate": { "type": "number" },
+        "taskCompletionRate": { "type": "number" },
+        "date": { "type": "string", "format": "date" }
+      },
+      "required": ["dau", "totalStudyTime", "date"]
+    },
+    "Reminder": {
+      "title": "Reminder",
+      "description": "A study reminder for a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "time": { "type": "string" },
+        "days": { "type": "array", "items": { "type": "number" } },
+        "isActive": { "type": "boolean" },
+        "subjectId": { "type": "string", "description": "Optional linked subject ID" }
+      },
+      "required": ["id", "userId", "title", "time", "days", "isActive"]
+    },
+    "MentorChat": {
+      "title": "MentorChat",
+      "description": "History of AI Mentor conversations.",
+      "type": "object",
+      "properties": {
+        "messages": { "type": "array" }
+      },
+      "required": ["messages"]
+    },
+    "Group": {
+      "title": "Group",
+      "description": "A collaborative study group.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "members": { "type": "array", "items": { "type": "string" } },
+        "adminIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "name", "createdBy", "createdAt", "members", "adminIds"]
+    },
+    "GroupMessage": {
+      "title": "GroupMessage",
+      "description": "A message in a group chat.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "senderId", "senderName", "content", "timestamp"]
+    },
+    "GroupObjective": {
+      "title": "GroupObjective",
+      "description": "A shared goal for a group.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "completedBy": { "type": "string" }
+      },
+      "required": ["id", "title", "completed", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "User profile data."
+    },
+    "/users/{userId}/subjects/{subjectId}": {
+      "schema": { "$ref": "Subject" },
+      "description": "Subjects for a user."
+    },
+    "/users/{userId}/logs/{logId}": {
+      "schema": { "$ref": "StudyLog" },
+      "description": "Study logs for a user."
+    },
+    "/users/{userId}/plans/{planId}": {
+      "schema": { "$ref": "DailyPlan" },
+      "description": "Daily study plans for a user."
+    },
+    "/users/{userId}/analytics/main": {
+      "schema": { "$ref": "Analytics" },
+      "description": "Main analytics document for a user."
+    },
+    "/users/{userId}/reminders/{reminderId}": {
+      "schema": { "$ref": "Reminder" },
+      "description": "Study reminders for a user."
+    },
+    "/users/{userId}/mentor_chat/history": {
+      "schema": { "$ref": "MentorChat" },
+      "description": "AI Mentor chat history."
+    },
+    "/groups/{groupId}": {
+      "schema": { "$ref": "Group" },
+      "description": "Study group data."
+    },
+    "/groups/{groupId}/messages/{messageId}": {
+      "schema": { "$ref": "GroupMessage" },
+      "description": "Messages in a group chat."
+    },
+    "/groups/{groupId}/objectives/{objectiveId}": {
+      "schema": { "$ref": "GroupObjective" },
+      "description": "Shared objectives for a group."
+    },
+    "/system/metrics/daily/{date}": {
+      "schema": { "$ref": "SystemMetrics" },
+      "description": "Daily platform metrics."
+    }
+  }
+}
