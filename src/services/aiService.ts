@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Subject, StudyLog } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || '' });
 
 async function withRetry<T>(fn: () => Promise<T>, retries = 5, delay = 3000): Promise<T> {
   try {
@@ -304,6 +304,91 @@ export interface CoachPlan {
   priorityFocus: string[];
   recommendations: string[];
   masteryAnalysis: string;
+}
+
+// ─── AI Chat Tutor ─────────────────────────────────────────────────────────────
+export interface ChatTutorMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp?: string;
+}
+
+export async function chatTutorResponse(
+  messages: ChatTutorMessage[],
+  context: { subjects: Subject[]; logs: StudyLog[]; targetExam?: string }
+): Promise<string> {
+  const systemPrompt = `You are an intelligent AI Study Tutor called "NeuralTutor". 
+You help students understand concepts, plan their studies, solve doubts, and stay motivated.
+Student's subjects: ${JSON.stringify(context.subjects.map(s => ({ name: s.name, difficulty: s.difficulty, mastery: s.masteryScore })))}
+Target exam: ${context.targetExam || 'Not specified'}
+Recent study activity: ${JSON.stringify(context.logs.slice(-10))}
+
+Guidelines:
+- Be concise, encouraging, and practical.
+- Use markdown for structured answers (lists, code blocks for formulas, etc.).
+- If asked about a concept, explain it clearly with examples.
+- If asked for a study plan, provide a structured day-by-day plan.
+- Address the student by their progress level (beginner/intermediate/advanced based on mastery scores).`;
+
+  const conversationHistory = messages.map(m => 
+    `${m.role === 'user' ? 'Student' : 'NeuralTutor'}: ${m.content}`
+  ).join('\n\n');
+
+  const fullPrompt = `${systemPrompt}\n\n--- Conversation ---\n${conversationHistory}\n\nNeuralTutor:`;
+
+  try {
+    const response = await withRetry(() => ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: fullPrompt,
+    }));
+    return response.text || "I'm processing your request. Please try again!";
+  } catch (error) {
+    console.error("Chat Tutor Error:", error);
+    return "I'm having connectivity issues right now. Please try again in a moment! 🔄";
+  }
+}
+
+// ─── Voice Log Parser ──────────────────────────────────────────────────────────
+export interface ParsedVoiceEntry {
+  subjectHint: string;   // extracted subject keyword
+  durationMinutes: number; // extracted duration in minutes (0 if not mentioned)
+  notes: string;         // cleaned up notes/summary
+}
+
+export async function parseVoiceTranscript(
+  transcript: string,
+  subjects: Subject[]
+): Promise<ParsedVoiceEntry> {
+  const prompt = `Parse the following voice study log transcript and extract structured data.
+Transcript: "${transcript}"
+Available subjects: ${subjects.map(s => s.name).join(', ')}
+
+Extract:
+1. Which subject was studied (match closest to available subjects list).
+2. How many minutes were studied (look for time mentions like "30 minutes", "1 hour", etc. Default to 30 if not mentioned).
+3. A clean summary/note of what was studied.`;
+
+  try {
+    const response = await withRetry(() => ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            subjectHint: { type: Type.STRING },
+            durationMinutes: { type: Type.NUMBER },
+            notes: { type: Type.STRING },
+          },
+          required: ["subjectHint", "durationMinutes", "notes"]
+        }
+      }
+    }));
+    return JSON.parse(response.text);
+  } catch {
+    return { subjectHint: subjects[0]?.name || 'General', durationMinutes: 30, notes: transcript };
+  }
 }
 
 export async function getAICoachPlan(subjects: Subject[], logs: StudyLog[]): Promise<CoachPlan> {

@@ -257,7 +257,40 @@ service cloud.firestore {
         allow update: if isOwner(userId) && isValidMentorChat(request.resource.data);
         allow delete: if isOwner(userId);
       }
+
+      // ─── Voice Study Logs ───────────────────────────────────────────────────
+      match /voiceLogs/{logId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                      request.resource.data.userId == request.auth.uid &&
+                      request.resource.data.transcript is string &&
+                      request.resource.data.duration is number &&
+                      request.resource.data.date is string;
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+
+      // ─── AI Chat Tutor Sessions ─────────────────────────────────────────────
+      match /chatSessions/{sessionId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+                               request.resource.data.messages is list &&
+                               request.resource.data.messages.size() <= 50;
+        allow delete: if isOwner(userId);
+      }
     }
+
+    // ─── Stats (Leaderboard) ────────────────────────────────────────────────────
+    match /users/{userId}/stats/{statId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ─── Global Leaderboard (public readable, owner writable) ──────────────────
+    match /leaderboard/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
     match /groups/{groupId} {
       allow read: if isAuthenticated() && (request.auth.uid in resource.data.members);
       allow create: if isAuthenticated() && isValidGroupCreate(request.resource.data);

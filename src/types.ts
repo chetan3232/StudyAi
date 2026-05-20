@@ -114,3 +114,55 @@ export interface Reminder {
   isActive: boolean;
   subjectId?: string;
 }
+
+// ─── Voice Logger ────────────────────────────────────────────────────────────
+export interface VoiceLog {
+  id: string;
+  userId: string;
+  subjectId: string;
+  subjectName: string;
+  transcript: string;       // speech-to-text result
+  duration: number;         // session duration in seconds (parsed from speech)
+  date: string;             // ISO string
+  source: 'voice';
+}
+
+// ─── AI Chat Tutor ────────────────────────────────────────────────────────────
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export interface ChatSession {
+  id: string;
+  userId: string;
+  messages: ChatMessage[];
+  subject?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Gamification / Rewards ───────────────────────────────────────────────────
+export interface Reward {
+  id: string;
+  userId: string;
+  type: 'badge' | 'streak' | 'xp_milestone' | 'subject_mastery';
+  title: string;
+  description: string;
+  icon: string;             // emoji or icon name
+  xpValue: number;
+  earnedAt: string;
+}
+
+export interface LeaderboardEntry {
+  userId: string;
+  name: string;
+  photoURL?: string;
+  xp: number;
+  level: number;
+  streak: number;
+  totalStudyMinutes: number;
+  rank?: number;
+}

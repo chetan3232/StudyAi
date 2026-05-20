@@ -1,11 +1,23 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, enableMultiTabIndexedDbPersistence, getDocFromServer, doc } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+
+// Firebase config is read from Vite environment variables (.env file).
+// Copy .env.example → .env and fill in your Firebase project values.
+const firebaseConfig = {
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+const firestoreDatabaseId = import.meta.env.VITE_FIREBASE_FIRESTORE_ID || '(default)';
 
 const app = initializeApp(firebaseConfig);
 console.log("Firebase Initialized with Project:", firebaseConfig.projectId);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(app, firestoreDatabaseId);
 
 // Enable robust offline persistence
 if (typeof window !== 'undefined') {

@@ -8,7 +8,7 @@ import { SubscriptionProvider, useSubscription } from './contexts/SubscriptionCo
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import MetricsTracker from './components/MetricsTracker';
 import ErrorBoundary from './components/ErrorBoundary';
-import { LayoutDashboard, Settings, LogOut, GraduationCap, BarChart3, MessageCircle, BookOpen, Users, Wifi, WifiOff, Zap, Sun, Moon, Coffee, ArrowRight, Shield, Cpu, BrainCircuit, Bell, Menu, Square, RefreshCw, Cloud } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, GraduationCap, BarChart3, MessageCircle, BookOpen, Users, Wifi, WifiOff, Zap, Sun, Moon, Coffee, ArrowRight, Shield, Cpu, BrainCircuit, Bell, Menu, Square, RefreshCw, Cloud, Mic, Trophy, Bot } from 'lucide-react';
 
 // Lazy load components
 const SubjectManager = lazy(() => import('./components/SubjectManager'));
@@ -24,6 +24,9 @@ const ContentIntelligence = lazy(() => import('./components/ContentIntelligence'
 const TestGenerator = lazy(() => import('./components/TestGenerator'));
 const Community = lazy(() => import('./components/Community'));
 const RemindersManager = lazy(() => import('./components/RemindersManager'));
+const VoiceLogger = lazy(() => import('./components/VoiceLogger'));
+const Gamification = lazy(() => import('./components/Gamification'));
+const AIChatTutor = lazy(() => import('./components/AIChatTutor'));
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center p-12">
@@ -75,7 +78,7 @@ function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'subjects' | 'analytics' | 'coach' | 'learning' | 'community' | 'reminders' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'subjects' | 'analytics' | 'coach' | 'learning' | 'community' | 'reminders' | 'settings' | 'voice' | 'gamification' | 'tutor'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
   const [forceOffline, setForceOffline] = useState(false);
@@ -552,7 +555,10 @@ function AppContent() {
               { id: 'subjects', icon: GraduationCap, label: 'Subjects' },
               { id: 'analytics', icon: BarChart3, label: 'Analytics' },
               { id: 'coach', icon: MessageCircle, label: 'AI Mentor' },
+              { id: 'tutor', icon: Bot, label: 'AI Tutor' },
               { id: 'learning', icon: BookOpen, label: 'AI Learning' },
+              { id: 'voice', icon: Mic, label: 'Voice Logger' },
+              { id: 'gamification', icon: Trophy, label: 'Rewards' },
               { id: 'community', icon: Users, label: 'Community' },
               { id: 'reminders', icon: Bell, label: 'Reminders' },
               { id: 'settings', icon: Settings, label: 'Settings' },
@@ -758,6 +764,42 @@ function AppContent() {
                         <p className="text-dark-bg-subtle font-medium">Schedule and manage your study sessions.</p>
                       </header>
                       <RemindersManager />
+                    </div>
+                  </ErrorBoundary>
+                )}
+
+                {activeTab === 'tutor' && (
+                  <ErrorBoundary>
+                    <div className="space-y-8">
+                      <header>
+                        <h2 className="text-4xl font-black tracking-tighter italic uppercase">AI Tutor</h2>
+                        <p className="text-dark-bg-subtle font-medium">Your personal NeuralTutor — ask anything, anytime.</p>
+                      </header>
+                      <AIChatTutor subjects={subjects} />
+                    </div>
+                  </ErrorBoundary>
+                )}
+
+                {activeTab === 'voice' && (
+                  <ErrorBoundary>
+                    <div className="space-y-8">
+                      <header>
+                        <h2 className="text-4xl font-black tracking-tighter">Voice Logger</h2>
+                        <p className="text-dark-bg-subtle font-medium">Log your study sessions hands-free with AI.</p>
+                      </header>
+                      <VoiceLogger subjects={subjects} />
+                    </div>
+                  </ErrorBoundary>
+                )}
+
+                {activeTab === 'gamification' && (
+                  <ErrorBoundary>
+                    <div className="space-y-8">
+                      <header>
+                        <h2 className="text-4xl font-black tracking-tighter">Rewards & Ranks</h2>
+                        <p className="text-dark-bg-subtle font-medium">Streaks, badges, XP — your study game.</p>
+                      </header>
+                      <Gamification />
                     </div>
                   </ErrorBoundary>
                 )}
