@@ -1,16 +1,25 @@
 import React, { useState, useRef } from 'react';
 import { analyzeContent, getMentorResponse } from '../services/aiService';
-import { FileText, Video, Loader2, CheckCircle, HelpCircle, Upload, MessageSquare, Send } from 'lucide-react';
-
+import { FileText, Video, Loader2, CheckCircle, HelpCircle, Upload, MessageSquare, Send, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { db, auth } from '../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { Subject } from '../types';
 
-export default function ContentIntelligence() {
+interface ContentIntelligenceProps {
+  subjects: Subject[];
+}
+
+export default function ContentIntelligence({ subjects }: ContentIntelligenceProps) {
   const [input, setInput] = useState('');
   const [type, setType] = useState<'pdf' | 'video' | 'text'>('text');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ summary: string, keyPoints: string[], quiz: any[] } | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
+  const [selectedSubjectId, setSelectedSubjectId] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   
   // Chat state
   const [chatInput, setChatInput] = useState('');
@@ -75,6 +84,27 @@ export default function ContentIntelligence() {
       setChatHistory(prev => [...prev, { role: 'ai', text: "Sorry, I couldn't process that question." }]);
     } finally {
       setChatLoading(false);
+    }
+  };
+
+  const handleSaveToSubject = async () => {
+    if (!selectedSubjectId || !result || !auth.currentUser) return;
+    setSavingNotes(true);
+    setSaveSuccess(false);
+    try {
+      const subDoc = doc(db, 'users', auth.currentUser.uid, 'subjects', selectedSubjectId);
+      const subSnap = await getDoc(subDoc);
+      if (subSnap.exists()) {
+        const currentNotes = subSnap.data().notes || '';
+        const formattedAddition = `\n\n--- [AI Summary: ${fileName || type.toUpperCase()}] ---\n${result.summary}\nKey Points:\n- ${result.keyPoints.join('\n- ')}`;
+        await setDoc(subDoc, { notes: currentNotes + formattedAddition }, { merge: true });
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
+    } catch (e) {
+      console.error("Save to subject notes failed:", e);
+    } finally {
+      setSavingNotes(false);
     }
   };
 
@@ -180,6 +210,30 @@ export default function ContentIntelligence() {
                     <p>{point}</p>
                   </div>
                 ))}
+              </div>
+
+              <div className="pt-6 border-t border-dark-border/40 flex flex-col sm:flex-row items-center gap-4">
+                <div className="flex-1 w-full">
+                  <label className="block text-[9px] font-black uppercase tracking-widest text-dark-bg-subtle mb-2">Sync to Curriculum Notes</label>
+                  <select
+                    value={selectedSubjectId}
+                    onChange={(e) => setSelectedSubjectId(e.target.value)}
+                    className="w-full p-3 bg-dark-bg/50 border border-dark-border rounded-xl text-dark-bg-text font-bold text-xs outline-none focus:border-neon-cyan/50 transition-all"
+                  >
+                    <option value="">Select Subject Target...</option>
+                    {subjects.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={handleSaveToSubject}
+                  disabled={savingNotes || !selectedSubjectId}
+                  className="w-full sm:w-auto px-5 py-3 bg-neon-cyan text-black font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-[0_0_15px_rgba(0,242,255,0.15)] flex items-center justify-center gap-2 self-end disabled:opacity-50"
+                >
+                  {savingNotes ? <Loader2 className="animate-spin" size={12} /> : <Save size={12} />}
+                  {saveSuccess ? 'Notes Synced!' : 'Sync to Notes'}
+                </button>
               </div>
             </div>
 

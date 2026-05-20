@@ -678,7 +678,12 @@ function AppContent() {
                             setActiveSubjectId={setActiveSubjectId}
                             onSave={saveStudyLog}
                           />
-                          <StudyPlanner subjects={subjects} />
+                          <StudyPlanner 
+                            subjects={subjects} 
+                            setActiveSubjectId={setActiveSubjectId}
+                            setTimerSeconds={setTimerSeconds}
+                            setIsTimerRunning={setIsTimerRunning}
+                          />
                         </div>
                         <div className="lg:col-span-4 space-y-8">
                           <ProfileSetup />
@@ -738,7 +743,7 @@ function AppContent() {
                         <p className="text-dark-bg-subtle font-medium">Deep learning acceleration tools.</p>
                       </header>
                       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                        <ContentIntelligence />
+                        <ContentIntelligence subjects={subjects} />
                         <TestGenerator subjects={subjects} />
                       </div>
                     </div>
