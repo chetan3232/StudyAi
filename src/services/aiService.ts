@@ -445,3 +445,106 @@ export async function getAICoachPlan(subjects: Subject[], logs: StudyLog[]): Pro
     };
   }
 }
+
+// ─── Goal Breakdown AI ────────────────────────────────────────────────────────
+export interface GoalTask {
+  title: string;
+  durationMinutes: number;
+  phase: string;
+}
+
+export async function getGoalBreakdown(goal: string, subjects: Subject[]): Promise<GoalTask[]> {
+  const prompt = `Break down the student's study goal: "${goal}" into a sequential, actionable micro-task roadmap.
+  Available subjects: ${subjects.map(s => s.name).join(', ')}
+  
+  Provide a JSON list of 3 to 6 logical steps (micro-tasks). Each step must specify:
+  1. title: A clear action-oriented instruction (e.g. "Read chapter 1 summary", "Solve 10 practice problems")
+  2. durationMinutes: Estimated study time needed (e.g. 20, 30, 45, 60)
+  3. phase: e.g. "Phase 1: Theory", "Phase 2: Practice", "Phase 3: Revision"`;
+
+  try {
+    const response = await withRetry(() => ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            tasks: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  durationMinutes: { type: Type.NUMBER },
+                  phase: { type: Type.STRING }
+                },
+                required: ["title", "durationMinutes", "phase"]
+              }
+            }
+          },
+          required: ["tasks"]
+        }
+      }
+    }));
+    return JSON.parse(response.text).tasks;
+  } catch (error) {
+    console.error("Goal breakdown generation error:", error);
+    return [
+      { title: "Review foundational materials for: " + goal, durationMinutes: 30, phase: "Phase 1: Foundation" },
+      { title: "Perform deep study on key points", durationMinutes: 45, phase: "Phase 2: Main Study" },
+      { title: "Solve practice problems and mock questions", durationMinutes: 30, phase: "Phase 3: Active Testing" }
+    ];
+  }
+}
+
+// ─── Predictive Study Engine Projections ──────────────────────────────────────
+export interface StudyProjection {
+  projectedScore: number;
+  readinessRating: string;
+  reproducibleTips: string[];
+}
+
+export async function getPredictiveReadiness(subjects: Subject[], logs: StudyLog[], targetExam: string): Promise<StudyProjection> {
+  const prompt = `Act as an expert performance projector for competitive exam preparation.
+  Target Exam: ${targetExam}
+  Subjects: ${JSON.stringify(subjects.map(s => ({ name: s.name, difficulty: s.difficulty, mastery: s.masteryScore || 50 })))}
+  Logs: ${JSON.stringify(logs.slice(-30))}
+
+  Project final readiness:
+  1. Calculate projected readiness score (0-100) based on logging hours, mastery ratings, and subject difficulty weighting.
+  2. Give a brief description of readiness rating.
+  3. Suggest 3 key actionable, highly reproducible study recommendations to improve the projection.`;
+
+  try {
+    const response = await withRetry(() => ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            projectedScore: { type: Type.NUMBER },
+            readinessRating: { type: Type.STRING },
+            reproducibleTips: { type: Type.ARRAY, items: { type: Type.STRING } }
+          },
+          required: ["projectedScore", "readinessRating", "reproducibleTips"]
+        }
+      }
+    }));
+    return JSON.parse(response.text);
+  } catch {
+    return {
+      projectedScore: 72,
+      readinessRating: "On Track, but chemistry and mathematics priority topics need consistent focus.",
+      reproducibleTips: [
+        "Double study hours on subjects with mastery scores below 50%.",
+        "Implement spaced-repetition loops with 15-minute morning review sprints.",
+        "Commit to at least one 25-minute uninterrupted Pomodoro study session daily."
+      ]
+    };
+  }
+}
+

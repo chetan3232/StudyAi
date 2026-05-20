@@ -4,8 +4,8 @@ import { collection, query, where, onSnapshot, setDoc, doc } from 'firebase/fire
 import { StudyLog, Subject } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, LineChart, Line } from 'recharts';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import { TrendingUp, PieChart as PieIcon, Download, BrainCircuit, Sparkles, BookOpen, Target, ChevronRight } from 'lucide-react';
-import { getDeepWeakAreaAnalysis, WeakAreaAnalysis } from '../services/aiService';
+import { TrendingUp, PieChart as PieIcon, Download, BrainCircuit, Sparkles, BookOpen, Target, ChevronRight, ShieldAlert } from 'lucide-react';
+import { getDeepWeakAreaAnalysis, WeakAreaAnalysis, getPredictiveReadiness } from '../services/aiService';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function StudyAnalytics() {
@@ -73,7 +73,7 @@ export default function StudyAnalytics() {
         .map(s => s.name);
       
       const totalMinutes = logs.reduce((acc, l) => acc + (l.duration / 60), 0);
-      const performanceScore = Math.min(100, Math.round((totalMinutes / 60) * 10)); // Simple score logic
+      const performanceScore = Math.min(100, Math.round((totalMinutes / 60) * 10));
 
       try {
         const analyticsDoc = doc(db, 'users', auth.currentUser.uid, 'analytics', 'main');
@@ -121,7 +121,8 @@ export default function StudyAnalytics() {
   const getSubjectData = () => {
     const subjectsMap: Record<string, number> = {};
     logs.forEach(l => {
-      subjectsMap[l.subjectName] = (subjectsMap[l.subjectName] || 0) + (l.duration / 60);
+      const name = l.subjectName || 'Unmapped';
+      subjectsMap[name] = (subjectsMap[name] || 0) + (l.duration / 60);
     });
     return Object.entries(subjectsMap).map(([name, value]) => ({ name, value: Math.round(value) }));
   };
@@ -138,7 +139,11 @@ export default function StudyAnalytics() {
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-end">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-black uppercase italic tracking-tighter text-dark-bg-text">Analytics Hub</h1>
+          <p className="text-[10px] text-dark-bg-subtle font-black uppercase tracking-widest">Cognitive readiness and performance diagnostics</p>
+        </div>
         <button 
           onClick={exportReport}
           className="flex items-center gap-2 bg-dark-surface hover:bg-dark-border text-dark-bg-muted hover:text-dark-bg-text px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-dark-border"
@@ -148,7 +153,112 @@ export default function StudyAnalytics() {
         </button>
       </div>
 
-      {/* Burnout Predictor Widget */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="glass-card p-6 border border-neon-cyan/20 bg-neon-cyan/5">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-neon-cyan/10 rounded-lg border border-neon-cyan/20">
+              <BrainCircuit className="text-neon-cyan" size={18} />
+            </div>
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-widest">Predictive Readiness Engine</h3>
+              <p className="text-[8px] text-dark-bg-subtle font-black uppercase tracking-widest">Calculates score trajectory for {profile?.targetExam || 'Competitive Exam'}</p>
+            </div>
+          </div>
+
+          {loadingReadiness ? (
+            <div className="py-8 flex items-center justify-center gap-2 text-[10px] font-black uppercase text-neon-cyan tracking-widest">
+              <RefreshCw className="animate-spin" size={14} />
+              Evaluating Trajectories...
+            </div>
+          ) : readiness ? (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[9px] font-black text-dark-bg-subtle uppercase tracking-widest">Projected Readiness Score</p>
+                  <span className="text-4xl font-black text-neon-cyan italic tracking-tighter">{readiness.projectedScore}%</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-black text-dark-bg-subtle uppercase tracking-widest">Countdown Days</p>
+                  <span className="text-2xl font-black text-neon-purple tracking-tighter">
+                    {profile?.examDate ? `${Math.ceil((new Date(profile.examDate).getTime() - new Date().getTime()) / (1000 * 3600 * 24))} Days Left` : 'N/A'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-dark-bg/60 border border-dark-border rounded-xl">
+                <p className="text-[10px] text-dark-bg-muted leading-relaxed font-semibold italic">
+                  "{readiness.readinessRating}"
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-[9px] font-black text-dark-bg-subtle uppercase tracking-widest">AI Corrective Recommendations</p>
+                {readiness.reproducibleTips.map((tip: string, idx: number) => (
+                  <div key={idx} className="flex gap-2 text-[10px] text-dark-bg-muted font-semibold">
+                    <Sparkles size={10} className="text-neon-cyan shrink-0 mt-0.5" />
+                    <span>{tip}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-[10px] font-black uppercase text-dark-bg-dim tracking-widest">
+              Log study metrics to initialize score projection
+            </div>
+          )}
+        </div>
+
+        <div className="glass-card p-6 border border-neon-purple/20 bg-neon-purple/5">
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-neon-purple/10 rounded-lg border border-neon-purple/20">
+                <TrendingUp className="text-neon-purple" size={18} />
+              </div>
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-widest">Habit Engine</h3>
+                <p className="text-[8px] text-dark-bg-subtle font-black uppercase tracking-widest">Measures consistent routine building</p>
+              </div>
+            </div>
+            
+            <div className="text-right">
+              <span className="text-3xl font-black text-neon-purple italic">{habitMetrics.habitScore}/100</span>
+              <p className="text-[8px] text-dark-bg-subtle font-black uppercase tracking-widest">Habit Score</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 bg-dark-bg/60 border border-dark-border rounded-xl">
+                <span className="text-lg font-black text-neon-lime italic">{habitMetrics.consistencyPercentage}%</span>
+                <p className="text-[8px] text-dark-bg-subtle uppercase tracking-widest font-black">7-Day Consistency</p>
+              </div>
+              <div className="p-3 bg-dark-bg/60 border border-dark-border rounded-xl">
+                <span className="text-lg font-black text-neon-cyan italic">{habitMetrics.activeDaysCount} Days</span>
+                <p className="text-[8px] text-dark-bg-subtle uppercase tracking-widest font-black">Logged Active Days</p>
+              </div>
+            </div>
+
+            <div className={`p-4 rounded-xl border flex items-center gap-3 transition-colors ${
+              habitMetrics.studiedToday 
+              ? 'bg-neon-lime/5 border-neon-lime/20 text-neon-lime' 
+              : 'bg-neon-pink/5 border-neon-pink/20 text-neon-pink'
+            }`}>
+              <ShieldAlert size={18} />
+              <div>
+                <h4 className="text-[10px] font-black uppercase tracking-widest">
+                  {habitMetrics.studiedToday ? 'Streak Protected' : 'Streak Miss Penalty Warning'}
+                </h4>
+                <p className="text-[9px] opacity-70">
+                  {habitMetrics.studiedToday 
+                    ? 'Nice! Study session completed today.' 
+                    : 'Log study hours today to shield your daily streak multiplier.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className={`glass-card p-6 border ${burnoutRisk.border} ${burnoutRisk.bg} flex flex-col md:flex-row items-center justify-between gap-6`}>
         <div className="flex items-center gap-4">
           <div className={`p-3 rounded-xl bg-dark-bg/50 border ${burnoutRisk.border}`}>

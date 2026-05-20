@@ -115,9 +115,10 @@ export default function Gamification() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'badges' | 'leaderboard'>('overview');
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
+  const [hasStudiedToday, setHasStudiedToday] = useState(true);
+  const [habitScore, setHabitScore] = useState(50);
   const user = auth.currentUser;
 
-  // Load current user stats
   useEffect(() => {
     if (!user) return;
     const unsub = onSnapshot(
@@ -128,6 +129,31 @@ export default function Gamification() {
       },
       (err) => handleFirestoreError(err, OperationType.GET, 'stats')
     );
+    return unsub;
+  }, [user]);
+
+  // Query logs to calculate Habit Score + Streak Miss Penalty
+  useEffect(() => {
+    if (!user) return;
+    const q = collection(db, 'users', user.uid, 'logs');
+    const unsub = onSnapshot(q, (snap) => {
+      const logsData = snap.docs.map(doc => doc.data());
+      const todayStr = new Date().toISOString().split('T')[0];
+      const studiedToday = logsData.some((l: any) => l.date && l.date.startsWith(todayStr));
+      setHasStudiedToday(studiedToday);
+
+      // Dynamic consistency mapping
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        return d.toISOString().split('T')[0];
+      });
+      const activeDays = last7Days.filter(date => logsData.some((l: any) => l.date && l.date.startsWith(date))).length;
+      const consistency = (activeDays / 7) * 100;
+      
+      const computedScore = Math.min(100, Math.round((consistency * 0.6) + (logsData.length * 2)));
+      setHabitScore(computedScore);
+    });
     return unsub;
   }, [user]);
 
@@ -238,6 +264,39 @@ export default function Gamification() {
                 </div>
               </div>
               <XPProgressBar xp={stats?.xp || 0} level={stats?.level || 1} />
+            </div>
+
+            {/* Smart Habit Engine Status Card */}
+            <div className="glass-card p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-widest text-dark-bg-subtle mb-3">Habit Consistency</h3>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-neon-purple italic">{habitScore}/100</span>
+                  <span className="text-[10px] uppercase font-black tracking-widest text-dark-bg-subtle">Habit Score</span>
+                </div>
+                <div className="w-full bg-dark-bg/60 h-1.5 rounded-full overflow-hidden mt-3">
+                  <div className="bg-neon-purple h-full" style={{ width: `${habitScore}%` }} />
+                </div>
+              </div>
+
+              {/* Streak Protection Warning Alert */}
+              <div className={`p-4 rounded-xl border flex items-center gap-3 transition-colors ${
+                hasStudiedToday 
+                ? 'bg-neon-lime/5 border-neon-lime/20 text-neon-lime' 
+                : 'bg-neon-pink/5 border-neon-pink/20 text-neon-pink shadow-[0_0_15px_rgba(255,0,255,0.05)]'
+              }`}>
+                <Medal size={20} className={hasStudiedToday ? 'text-neon-lime' : 'text-neon-pink'} />
+                <div>
+                  <h4 className="text-[10px] font-black uppercase tracking-widest">
+                    {hasStudiedToday ? 'Streak Protected' : 'Streak Miss Warning'}
+                  </h4>
+                  <p className="text-[9px] opacity-70">
+                    {hasStudiedToday 
+                      ? 'Study session completed today. Multiplier active.' 
+                      : 'Complete a study session today to shield your daily streak score.'}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Stats Grid */}
