@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
-import { collection, doc, setDoc, onSnapshot, query, where, getDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, onSnapshot, query, where, getDoc, orderBy, limit } from 'firebase/firestore';
 import { Subject, DailyPlan, PlanTask } from '../types';
 import { Sparkles, CheckCircle2, Circle, CalendarDays, AlertCircle, Plus, LayoutGrid, CheckSquare, BookOpen, Hourglass, Zap } from 'lucide-react';
 import { getGoalBreakdown, GoalTask } from '../services/aiService';
@@ -8,9 +8,12 @@ import { motion, AnimatePresence } from 'motion/react';
 
 interface StudyPlannerProps {
   subjects: Subject[];
+  setActiveSubjectId?: (id: string) => void;
+  setTimerSeconds?: (s: number) => void;
+  setIsTimerRunning?: (r: boolean) => void;
 }
 
-export default function StudyPlanner({ subjects }: StudyPlannerProps) {
+export default function StudyPlanner({ subjects, setActiveSubjectId, setTimerSeconds, setIsTimerRunning }: StudyPlannerProps) {
   const [todayPlan, setTodayPlan] = useState<DailyPlan | null>(null);
   const [generating, setGenerating] = useState(false);
   
@@ -28,7 +31,40 @@ export default function StudyPlanner({ subjects }: StudyPlannerProps) {
   // User Profile configuration
   const [profile, setProfile] = useState<any>(null);
 
+  // Recent Study Logs State (Cognitive Load Balancer & Procrastination Check)
+  const [recentLogs, setRecentLogs] = useState<any[]>([]);
+
   const todayStr = new Date().toISOString().split('T')[0];
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const q = query(
+      collection(db, 'users', auth.currentUser.uid, 'logs'),
+      orderBy('date', 'desc'),
+      limit(10)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setRecentLogs(snapshot.docs.map(d => d.data()));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'logs'));
+    return unsubscribe;
+  }, []);
+
+  const hasProcrastinated = () => {
+    if (recentLogs.length === 0) return false;
+    const latestLog = recentLogs[0];
+    if (!latestLog.date) return false;
+    const latestDate = new Date(latestLog.date).getTime();
+    const diffDays = (new Date().getTime() - latestDate) / (1000 * 3600 * 24);
+    return diffDays > 2;
+  };
+
+  const startProcrastinationChallenge = () => {
+    if (subjects.length > 0 && setActiveSubjectId && setTimerSeconds && setIsTimerRunning) {
+      setActiveSubjectId(subjects[0].id);
+      setTimerSeconds(5 * 60); // 5 minutes
+      setIsTimerRunning(true);
+    }
+  };
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -108,6 +144,19 @@ export default function StudyPlanner({ subjects }: StudyPlannerProps) {
       }
 
       const examMode = isExamModeActive();
+      const recentMoods = recentLogs.slice(0, 3).map(l => l.mood);
+      const isFatigued = recentMoods.includes('tired') || recentMoods.includes('distracted');
+
+      let scaleFactor = 1.0;
+      if (examMode) scaleFactor *= 1.25;
+      if (isFatigued) scaleFactor *= 0.85;
+
+      if (isFatigued) {
+        recoveryAlert = (recoveryAlert ? recoveryAlert + " | " : "") + "🧠 Cognitive Load Balancer Active: Scheduled session times reduced by 15% to avoid study burnout.";
+      }
+
+      const style = profile?.learningStyle || 'visual';
+      const stylePrefix = style === 'visual' ? '🎨 Visualize' : style === 'reading' ? '📖 Review' : '🛠️ Practice';
 
       const adaptiveTasks: PlanTask[] = subjects.map(s => {
         let duration = 45;
@@ -121,13 +170,11 @@ export default function StudyPlanner({ subjects }: StudyPlannerProps) {
           duration = Math.max(25, duration - 15);
         }
 
-        if (examMode) {
-          duration = Math.round(duration * 1.25);
-        }
+        duration = Math.round(duration * scaleFactor);
 
         return {
           subjectId: s.id,
-          subjectName: examMode ? `📅 Exam Prep: ${s.name}` : s.name,
+          subjectName: examMode ? `📅 Exam Prep (${stylePrefix}): ${s.name}` : `${stylePrefix}: ${s.name}`,
           durationMinutes: duration,
           completed: false
         };
@@ -156,7 +203,7 @@ export default function StudyPlanner({ subjects }: StudyPlannerProps) {
         if ((weakest.masteryScore || 50) < 65) {
           selected.push({
             subjectId: 'mock-test',
-            subjectName: `📝 Mock Exam: ${weakest.name} Practice`,
+            subjectName: `📝 Mock Exam (${stylePrefix}): ${weakest.name} Practice`,
             durationMinutes: 45,
             completed: false
           });
@@ -305,20 +352,32 @@ export default function StudyPlanner({ subjects }: StudyPlannerProps) {
   return (
     <div className="space-y-6">
       <AnimatePresence>
-        {todayPlan && todayPlan.tasks.every(t => !t.completed) && subjects.length > 0 && (
+        {(hasProcrastinated() || (todayPlan && todayPlan.tasks.every(t => !t.completed) && subjects.length > 0)) && (
           <motion.div 
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="p-4 bg-orange-500/5 border border-orange-500/10 rounded-2xl flex items-center gap-4"
+            className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.05)]"
           >
-            <div className="p-2 bg-orange-500/10 rounded-lg text-orange-400">
-              <AlertCircle size={20} />
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-500/20 rounded-lg text-orange-400 shrink-0">
+                <Zap size={20} className="animate-pulse" />
+              </div>
+              <div>
+                <p className="text-xs font-black text-orange-400 uppercase tracking-widest">Anti-Procrastination Protocol Active</p>
+                <p className="text-[11px] text-orange-300/70">
+                  {hasProcrastinated()
+                    ? "Inactivity Detected: You haven't logged study hours in 2+ days. Reset your streak with a fast micro-session!"
+                    : `System Idle: Break the friction loop right now. Run a 5-minute mini challenge on ${todayPlan?.tasks[0]?.subjectName || 'your targets'}.`}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-black text-orange-400 uppercase tracking-widest">Anti-Procrastination Protocol</p>
-              <p className="text-[11px] text-orange-300/70">System idle. Break the loop: 5m of {todayPlan.tasks[0].subjectName.replace("⚠️ Review: ", "")} now.</p>
-            </div>
+            <button
+              onClick={startProcrastinationChallenge}
+              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-black text-[9px] font-black uppercase tracking-widest rounded-lg transition-all shadow-md shrink-0 active:scale-95"
+            >
+              Accept 5m Challenge
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

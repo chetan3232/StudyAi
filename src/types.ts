@@ -16,6 +16,7 @@ export interface UserProfile {
   targetExam?: string;
   subscriptionTier: 'free' | 'pro';
   forceExamMode?: boolean;
+  learningStyle?: 'visual' | 'reading' | 'practice';
 }
 
 export interface StudyLog {
@@ -25,6 +26,7 @@ export interface StudyLog {
   subjectName: string;
   duration: number; // in seconds
   date: string; // ISO string
+  mood?: 'focused' | 'tired' | 'distracted' | 'motivated';
 }
 
 export interface PlanTask {
@@ -166,4 +168,14 @@ export interface LeaderboardEntry {
   streak: number;
   totalStudyMinutes: number;
   rank?: number;
+}
+
+export interface UserExam {
+  id: string;
+  userId: string;
+  subjectName: string;
+  score: number;
+  totalQuestions: number;
+  date: string;
+  difficulty: string;
 }

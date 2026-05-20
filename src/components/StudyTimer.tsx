@@ -11,7 +11,7 @@ interface StudyTimerProps {
   setIsTimerRunning: (r: boolean) => void;
   activeSubjectId: string;
   setActiveSubjectId: (id: string) => void;
-  onSave: () => Promise<void>;
+  onSave: (mood: string) => Promise<void>;
 }
 
 export default function StudyTimer({ 
@@ -29,6 +29,7 @@ export default function StudyTimer({
   const [timerMode, setTimerMode] = useState<'classic' | 'pomodoro'>('classic');
   const [pomoSession, setPomoSession] = useState<'study' | 'break'>('study');
   const [deepFocus, setDeepFocus] = useState(false);
+  const [selectedMood, setSelectedMood] = useState<'focused' | 'tired' | 'distracted' | 'motivated'>('focused');
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -83,7 +84,7 @@ export default function StudyTimer({
   const stopTimer = async () => {
     setIsTimerRunning(false);
     setDeepFocus(false);
-    await onSave();
+    await onSave(selectedMood);
   };
 
   const formatTime = (totalSeconds: number) => {
@@ -220,6 +221,32 @@ export default function StudyTimer({
               <ShieldAlert size={16} />
               {deepFocus ? 'Deep Focus Active' : 'Enable Deep Focus'}
             </button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-dark-bg-subtle uppercase tracking-widest ml-1">Current Mood / Focus State</label>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { mood: 'focused', label: 'Focused', emoji: '🎯' },
+              { mood: 'tired', label: 'Tired', emoji: '🥱' },
+              { mood: 'distracted', label: 'Distracted', emoji: '🌀' },
+              { mood: 'motivated', label: 'Motivated', emoji: '🔥' }
+            ].map(m => (
+              <button
+                key={m.mood}
+                type="button"
+                onClick={() => setSelectedMood(m.mood as any)}
+                className={`py-2 px-1 rounded-xl border text-[9px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 ${
+                  selectedMood === m.mood
+                    ? 'bg-neon-purple/10 border-neon-purple/50 text-neon-purple shadow-[0_0_10px_rgba(188,19,254,0.15)]'
+                    : 'bg-dark-bg/50 border-dark-border text-dark-bg-muted hover:border-dark-bg-dim hover:text-dark-bg-text'
+                }`}
+              >
+                <span className="text-sm">{m.emoji}</span>
+                <span>{m.label}</span>
+              </button>
+            ))}
           </div>
         </div>
 

@@ -11,6 +11,7 @@ export default function ProfileSetup() {
   const [examDate, setExamDate] = useState('');
   const [targetExam, setTargetExam] = useState('');
   const [forceExamMode, setForceExamMode] = useState(false);
+  const [learningStyle, setLearningStyle] = useState<'visual' | 'reading' | 'practice'>('visual');
   const [saving, setSaving] = useState(false);
   const { tier, isPro } = useSubscription();
 
@@ -24,6 +25,7 @@ export default function ProfileSetup() {
         setExamDate(data.examDate || '');
         setTargetExam(data.targetExam || '');
         setForceExamMode(data.forceExamMode || false);
+        setLearningStyle(data.learningStyle || 'visual');
       } else {
         // Initialize profile if it doesn't exist
         const initialProfile: UserProfile = {
@@ -45,7 +47,8 @@ export default function ProfileSetup() {
       await setDoc(doc(db, 'users', auth.currentUser.uid), {
         examDate,
         targetExam,
-        forceExamMode
+        forceExamMode,
+        learningStyle
       }, { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'users');
@@ -85,6 +88,24 @@ export default function ProfileSetup() {
             onChange={e => setExamDate(e.target.value)} 
             className="w-full p-4 bg-dark-bg/50 border border-dark-border rounded-xl text-dark-bg-text font-bold text-sm outline-none focus:border-neon-cyan/50 transition-all mb-4"
           />
+
+          <label className="block text-[10px] font-black uppercase tracking-widest text-dark-bg-dim mb-2">Cognitive Learning Style</label>
+          <div className="grid grid-cols-3 gap-2 bg-dark-bg/50 p-1 border border-dark-border rounded-xl mb-4">
+            {(['visual', 'reading', 'practice'] as const).map(style => (
+              <button
+                key={style}
+                type="button"
+                onClick={() => setLearningStyle(style)}
+                className={`py-2 px-3 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                  learningStyle === style
+                    ? 'bg-neon-cyan text-black shadow-[0_0_10px_rgba(0,242,255,0.15)]'
+                    : 'text-dark-bg-muted hover:text-dark-bg-text'
+                }`}
+              >
+                {style}
+              </button>
+            ))}
+          </div>
 
           <div className="flex items-center justify-between p-4 bg-neon-pink/5 border border-neon-pink/10 rounded-xl">
             <div>

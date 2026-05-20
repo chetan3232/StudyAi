@@ -164,7 +164,7 @@ function AppContent() {
     }
   };
 
-  const saveStudyLog = async () => {
+  const saveStudyLog = async (mood?: string) => {
     if (timerSeconds < 1 || !activeSubjectId || !user) {
       setIsTimerRunning(false);
       setTimerSeconds(0);
@@ -183,7 +183,8 @@ function AppContent() {
         subjectId: subject.id,
         subjectName: subject.name,
         duration: timerSeconds,
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        ...(mood ? { mood } : {})
       });
       
       await updateUserStats(timerSeconds);
