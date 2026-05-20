@@ -15,6 +15,7 @@ export interface UserProfile {
   examDate?: string;
   targetExam?: string;
   subscriptionTier: 'free' | 'pro';
+  forceExamMode?: boolean;
 }
 
 export interface StudyLog {

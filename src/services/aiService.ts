@@ -324,11 +324,14 @@ Target exam: ${context.targetExam || 'Not specified'}
 Recent study activity: ${JSON.stringify(context.logs.slice(-10))}
 
 Guidelines:
-- Be concise, encouraging, and practical.
-- Use markdown for structured answers (lists, code blocks for formulas, etc.).
-- If asked about a concept, explain it clearly with examples.
-- If asked for a study plan, provide a structured day-by-day plan.
-- Address the student by their progress level (beginner/intermediate/advanced based on mastery scores).`;
+- Be concise, encouraging, and highly action-oriented.
+- If the user asks what to study today ("Aaj kya karu?", "What should I do today?"), look at their subject masteries and recent logs:
+  1. Highlight weak areas (e.g., "Chemistry weak hai (mastery < 50%) -> 1.5 hr practice problems").
+  2. Detect missed sessions or streaks (e.g., "Kal Mathematics miss kiya -> study 45m catchup first").
+  3. Provide concrete action items rather than generic advice.
+- Use markdown format (lists, code blocks for formulas, bold titles).
+- Address the student based on their calculated consistency and mastery levels.
+- Respond in a blend of English/Hinglish if they ask in Hindi/Hinglish (e.g., "Aaj kya karu?").`;
 
   const conversationHistory = messages.map(m => 
     `${m.role === 'user' ? 'Student' : 'NeuralTutor'}: ${m.content}`

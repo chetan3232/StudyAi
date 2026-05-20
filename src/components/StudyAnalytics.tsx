@@ -4,7 +4,7 @@ import { collection, query, where, onSnapshot, setDoc, doc } from 'firebase/fire
 import { StudyLog, Subject } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, LineChart, Line } from 'recharts';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import { TrendingUp, PieChart as PieIcon, Download, BrainCircuit, Sparkles, BookOpen, Target, ChevronRight, ShieldAlert } from 'lucide-react';
+import { TrendingUp, PieChart as PieIcon, Download, BrainCircuit, Sparkles, BookOpen, Target, ChevronRight, ShieldAlert, Calendar, Flame } from 'lucide-react';
 import { getDeepWeakAreaAnalysis, WeakAreaAnalysis, getPredictiveReadiness } from '../services/aiService';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -102,6 +102,23 @@ export default function StudyAnalytics() {
       const totalMinutes = dayLogs.reduce((acc, l) => acc + (l.duration / 60), 0);
       return {
         date: date.split('-').slice(1).join('/'),
+        minutes: Math.round(totalMinutes)
+      };
+    });
+  };
+
+  const getHeatmapData = () => {
+    const last35Days = Array.from({ length: 35 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toISOString().split('T')[0];
+    }).reverse();
+
+    return last35Days.map(date => {
+      const dayLogs = logs.filter(l => l.date.startsWith(date));
+      const totalMinutes = dayLogs.reduce((acc, l) => acc + (l.duration / 60), 0);
+      return {
+        date,
         minutes: Math.round(totalMinutes)
       };
     });
@@ -301,6 +318,62 @@ export default function StudyAnalytics() {
               />
             </LineChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* 📊 Consistency Heatmap Engine */}
+      <div className="glass-card p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-neon-purple/10 rounded-lg border border-neon-purple/20">
+            <Calendar className="text-neon-purple" size={20} />
+          </div>
+          <div>
+            <h2 className="text-lg font-black uppercase italic tracking-tighter text-dark-bg-text">Consistency Grid</h2>
+            <p className="text-[10px] text-dark-bg-subtle font-black uppercase tracking-widest">35-day study commitment calendar</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-4 bg-dark-bg/40 border border-dark-border rounded-2xl">
+          {/* Calendar Heatmap Grid */}
+          <div className="flex-1">
+            <div className="grid grid-flow-col grid-rows-7 gap-2 max-w-full overflow-x-auto py-2">
+              {getHeatmapData().map((day, idx) => {
+                const isZero = day.minutes === 0;
+                const isLow = day.minutes > 0 && day.minutes <= 30;
+                const isMed = day.minutes > 30 && day.minutes <= 60;
+                const isHigh = day.minutes > 60;
+                
+                return (
+                  <div
+                    key={idx}
+                    title={`${day.date}: ${day.minutes} mins studied`}
+                    className={`w-6 h-6 rounded-md border transition-all cursor-help relative group ${
+                      isZero ? 'bg-dark-bg/60 border-dark-border/40' :
+                      isLow ? 'bg-neon-cyan/20 border-neon-cyan/40 shadow-[0_0_8px_rgba(0,242,255,0.05)]' :
+                      isMed ? 'bg-neon-cyan/50 border-neon-cyan/70 shadow-[0_0_12px_rgba(0,242,255,0.15)]' :
+                      'bg-neon-cyan border-neon-cyan text-black font-black shadow-[0_0_15px_rgba(0,242,255,0.35)]'
+                    }`}
+                  >
+                    {/* Tooltip Overlay */}
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/90 border border-dark-border px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest text-dark-bg-text whitespace-nowrap z-50 shadow-xl">
+                      {day.date.split('-').slice(1).join('/')} • {day.minutes}m
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Key / Legend */}
+          <div className="flex md:flex-col items-center gap-3 shrink-0">
+            <span className="text-[9px] font-black uppercase text-dark-bg-subtle tracking-widest">Intensity</span>
+            <div className="flex gap-1.5">
+              <div className="w-4 h-4 rounded bg-dark-bg/60 border border-dark-border/40" title="0 mins" />
+              <div className="w-4 h-4 rounded bg-neon-cyan/20 border border-neon-cyan/40" title="1-30 mins" />
+              <div className="w-4 h-4 rounded bg-neon-cyan/50 border border-neon-cyan/70" title="31-60 mins" />
+              <div className="w-4 h-4 rounded bg-neon-cyan border border-neon-cyan" title="61+ mins" />
+            </div>
+          </div>
         </div>
       </div>
 

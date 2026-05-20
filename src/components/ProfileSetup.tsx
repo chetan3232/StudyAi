@@ -10,6 +10,7 @@ export default function ProfileSetup() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [examDate, setExamDate] = useState('');
   const [targetExam, setTargetExam] = useState('');
+  const [forceExamMode, setForceExamMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const { tier, isPro } = useSubscription();
 
@@ -22,6 +23,7 @@ export default function ProfileSetup() {
         setProfile(data);
         setExamDate(data.examDate || '');
         setTargetExam(data.targetExam || '');
+        setForceExamMode(data.forceExamMode || false);
       } else {
         // Initialize profile if it doesn't exist
         const initialProfile: UserProfile = {
@@ -42,7 +44,8 @@ export default function ProfileSetup() {
     try {
       await setDoc(doc(db, 'users', auth.currentUser.uid), {
         examDate,
-        targetExam
+        targetExam,
+        forceExamMode
       }, { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'users');
@@ -80,8 +83,22 @@ export default function ProfileSetup() {
             type="date" 
             value={examDate} 
             onChange={e => setExamDate(e.target.value)} 
-            className="w-full p-4 bg-dark-bg/50 border border-dark-border rounded-xl text-dark-bg-text font-bold text-sm outline-none focus:border-neon-cyan/50 transition-all"
+            className="w-full p-4 bg-dark-bg/50 border border-dark-border rounded-xl text-dark-bg-text font-bold text-sm outline-none focus:border-neon-cyan/50 transition-all mb-4"
           />
+
+          <div className="flex items-center justify-between p-4 bg-neon-pink/5 border border-neon-pink/10 rounded-xl">
+            <div>
+              <p className="text-xs font-black text-neon-pink uppercase tracking-widest">Smart Exam Mode Boost</p>
+              <p className="text-[10px] text-dark-bg-muted font-bold">Forces high-intensity preparation & exam priority.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setForceExamMode(!forceExamMode)}
+              className={`w-12 h-6 rounded-full p-1 transition-colors ${forceExamMode ? 'bg-neon-pink' : 'bg-dark-bg border border-dark-border'}`}
+            >
+              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${forceExamMode ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
+          </div>
         </div>
         <button 
           onClick={saveProfile} 

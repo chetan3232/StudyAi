@@ -12,7 +12,7 @@ interface AIChatTutorProps {
 }
 
 const QUICK_PROMPTS = [
-  'Give me a study plan for today',
+  'Aaj kya karu?',
   'What should I revise first?',
   'Explain Newton\'s Laws simply',
   'How do I improve my focus?',
