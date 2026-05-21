@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense, useRef, useSyncExternalStore } from 'react';
 import { db, auth, login, logout, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { collection, query, where, onSnapshot, doc, getDocFromServer, setDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDocFromServer, setDoc, getDoc, disableNetwork, enableNetwork } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Subject } from './types';
 import { SubscriptionProvider, useSubscription } from './contexts/SubscriptionContext';
@@ -218,6 +218,14 @@ function AppContent() {
   const effectiveOnline = isOnline && !forceOffline;
 
   useEffect(() => {
+    if (forceOffline) {
+      disableNetwork(db).catch(console.error);
+    } else {
+      enableNetwork(db).catch(console.error);
+    }
+  }, [forceOffline]);
+
+  useEffect(() => {
     // Robust Real-time Connectivity Check
     const unsub = onSnapshot(doc(db, 'system_status', 'probe'), { includeMetadataChanges: true }, (snap) => {
       const online = !snap.metadata.fromCache;
@@ -234,13 +242,16 @@ function AppContent() {
       }
     });
     
-    window.addEventListener('online', () => setIsOnline(true));
-    window.addEventListener('offline', () => setIsOnline(false));
+    const setOnline = () => setIsOnline(true);
+    const setOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', setOnline);
+    window.addEventListener('offline', setOffline);
     
     return () => {
       unsub();
-      window.removeEventListener('online', () => setIsOnline(true));
-      window.removeEventListener('offline', () => setIsOnline(false));
+      window.removeEventListener('online', setOnline);
+      window.removeEventListener('offline', setOffline);
     };
   }, []);
 
