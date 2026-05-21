@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { collection, deleteDoc, doc, query, where, onSnapshot, setDoc, writeBatch } from 'firebase/firestore';
 import { Subject } from '../types';
-import { Plus, Trash2, BookOpen, Star, Zap, Search, GripVertical, Filter } from 'lucide-react';
+import { Plus, Trash2, BookOpen, Star, Zap, Search, GripVertical, Filter, Edit2, X } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -27,9 +27,10 @@ interface SortableItemProps {
   id: string;
   subject: Subject;
   onDelete: (id: string) => void;
+  onEdit: (subject: Subject) => void;
 }
 
-function SortableSubjectItem({ id, subject, onDelete }: SortableItemProps) {
+function SortableSubjectItem({ id, subject, onDelete, onEdit }: SortableItemProps) {
   const {
     attributes,
     listeners,
@@ -92,12 +93,20 @@ function SortableSubjectItem({ id, subject, onDelete }: SortableItemProps) {
           </span>
         </div>
       </div>
-      <button 
-        onClick={() => onDelete(subject.id)} 
-        className="p-3 text-dark-bg-dim hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-      >
-        <Trash2 size={18} />
-      </button>
+      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button 
+          onClick={() => onEdit(subject)} 
+          className="p-3 text-dark-bg-dim hover:text-neon-cyan hover:bg-neon-cyan/10 rounded-xl transition-all"
+        >
+          <Edit2 size={18} />
+        </button>
+        <button 
+          onClick={() => onDelete(subject.id)} 
+          className="p-3 text-dark-bg-dim hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+        >
+          <Trash2 size={18} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -110,6 +119,7 @@ export default function SubjectManager() {
   const [difficulty, setDifficulty] = useState<1 | 2 | 3>(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPriority, setFilterPriority] = useState<number | 'all'>('all');
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -166,20 +176,42 @@ export default function SubjectManager() {
   const addSubject = async () => {
     if (!auth.currentUser || !name) return;
     try {
-      const newDocRef = doc(collection(db, 'users', auth.currentUser.uid, 'subjects'));
-      await setDoc(newDocRef, {
-        id: newDocRef.id,
-        userId: auth.currentUser.uid,
-        name,
-        priority,
-        difficulty,
-        notes,
-        masteryScore: 0,
-        order: subjects.length
-      });
+      if (editingId) {
+        const docRef = doc(db, 'users', auth.currentUser.uid, 'subjects', editingId);
+        await setDoc(docRef, {
+          name,
+          priority,
+          difficulty,
+          notes
+        }, { merge: true });
+        setEditingId(null);
+      } else {
+        const newDocRef = doc(collection(db, 'users', auth.currentUser.uid, 'subjects'));
+        await setDoc(newDocRef, {
+          id: newDocRef.id,
+          userId: auth.currentUser.uid,
+          name,
+          priority,
+          difficulty,
+          notes,
+          masteryScore: 0,
+          order: subjects.length
+        });
+      }
       setName('');
       setNotes('');
+      setPriority(1);
+      setDifficulty(1);
     } catch (error) { handleFirestoreError(error, OperationType.CREATE, 'subjects'); }
+  };
+
+  const handleEdit = (subject: Subject) => {
+    setName(subject.name);
+    setPriority(subject.priority as 1 | 2 | 3);
+    setDifficulty(subject.difficulty as 1 | 2 | 3);
+    setNotes(subject.notes || '');
+    setEditingId(subject.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const deleteSubject = async (id: string) => {
@@ -253,15 +285,31 @@ export default function SubjectManager() {
             {[1, 2, 3].map(n => <option key={n} value={n}>Difficulty {n}</option>)}
           </select>
         </div>
-        <div className="md:col-span-3">
+        <div className="md:col-span-3 flex gap-2">
+          {editingId && (
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                setEditingId(null);
+                setName('');
+                setNotes('');
+                setPriority(1);
+                setDifficulty(1);
+              }}
+              className="flex-shrink-0 w-12 bg-dark-bg/50 text-dark-bg-subtle hover:text-dark-bg-text font-black rounded-xl flex items-center justify-center transition-all border border-dark-border"
+            >
+              <X size={20} />
+            </motion.button>
+          )}
           <motion.button 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={addSubject} 
-            className="w-full bg-neon-purple text-dark-bg-text font-black py-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(188,19,254,0.2)]"
+            className="flex-1 bg-neon-purple text-dark-bg-text font-black py-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(188,19,254,0.2)]"
           >
-            <Plus size={20} />
-            Initialize
+            {editingId ? <Edit2 size={20} /> : <Plus size={20} />}
+            {editingId ? 'Update' : 'Initialize'}
           </motion.button>
         </div>
         <div className="md:col-span-12">
@@ -331,6 +379,7 @@ export default function SubjectManager() {
                       id={s.id} 
                       subject={s} 
                       onDelete={deleteSubject} 
+                      onEdit={handleEdit}
                     />
                   ))}
                 </AnimatePresence>

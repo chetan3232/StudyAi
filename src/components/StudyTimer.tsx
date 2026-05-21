@@ -25,9 +25,10 @@ export default function StudyTimer({
   onSave 
 }: StudyTimerProps) {
 
-  // Focus Modes: 'classic' | 'pomodoro'
-  const [timerMode, setTimerMode] = useState<'classic' | 'pomodoro'>('classic');
+  // Focus Modes: 'classic' | 'pomodoro' | 'manual'
+  const [timerMode, setTimerMode] = useState<'classic' | 'pomodoro' | 'manual'>('classic');
   const [pomoSession, setPomoSession] = useState<'study' | 'break'>('study');
+  const [manualMinutes, setManualMinutes] = useState(30);
   const [deepFocus, setDeepFocus] = useState(false);
   const [selectedMood, setSelectedMood] = useState<'focused' | 'tired' | 'distracted' | 'motivated'>('focused');
   const [loadWarningDismissed, setLoadWarningDismissed] = useState(false);
@@ -76,7 +77,7 @@ export default function StudyTimer({
     };
   }, [isTimerRunning, timerMode, pomoSession]);
 
-  const handleModeChange = (mode: 'classic' | 'pomodoro') => {
+  const handleModeChange = (mode: 'classic' | 'pomodoro' | 'manual') => {
     if (isTimerRunning) return;
     setTimerMode(mode);
     if (mode === 'pomodoro') {
@@ -96,6 +97,15 @@ export default function StudyTimer({
     setIsTimerRunning(false);
     setDeepFocus(false);
     await onSave(selectedMood);
+  };
+
+  const logManualSession = async () => {
+    if (!activeSubjectId || manualMinutes <= 0) return;
+    setTimerSeconds(manualMinutes * 60);
+    // Need to trigger save with updated state
+    setTimeout(() => {
+      onSave(selectedMood);
+    }, 100);
   };
 
   const formatTime = (totalSeconds: number) => {
@@ -139,7 +149,7 @@ export default function StudyTimer({
               </div>
               <div>
                 <h4 className="text-sm font-black text-white uppercase tracking-widest">Cognitive Overload Detected</h4>
-                <p className="text-[10px] font-bold text-neon-purple mt-0.5">Continuous focus > 45m reduces retention by 30%. Scientifically suggested break: 10 mins.</p>
+                <p className="text-[10px] font-bold text-neon-purple mt-0.5">Continuous focus &gt; 45m reduces retention by 30%. Scientifically suggested break: 10 mins.</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -236,6 +246,15 @@ export default function StudyTimer({
           >
             Pomodoro
           </button>
+          <button
+            onClick={() => handleModeChange('manual')}
+            disabled={isTimerRunning}
+            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+              timerMode === 'manual' ? 'bg-neon-cyan text-black' : 'text-dark-bg-subtle hover:text-dark-bg-text'
+            }`}
+          >
+            Manual
+          </button>
         </div>
       </div>
 
@@ -298,28 +317,57 @@ export default function StudyTimer({
         </div>
 
         <div className="text-center py-4 relative">
-          {timerMode === 'pomodoro' && (
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-neon-purple/10 border border-neon-purple/20 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest text-neon-purple">
-              <Sparkles size={8} />
-              {pomoSession === 'study' ? 'Study Cycle (25m)' : 'Break Cycle (5m)'}
+          {timerMode === 'manual' ? (
+            <div className="flex flex-col items-center gap-4 py-8">
+              <label className="text-[10px] font-black text-dark-bg-subtle uppercase tracking-widest">Duration (Minutes)</label>
+              <input 
+                type="number" 
+                min="1"
+                value={manualMinutes}
+                onChange={e => setManualMinutes(Number(e.target.value))}
+                className="w-32 p-4 text-center text-3xl font-mono font-black text-neon-cyan bg-dark-bg/50 border border-dark-border rounded-xl focus:border-neon-cyan/50 outline-none transition-all"
+              />
+              <p className="text-[10px] font-black text-dark-bg-subtle uppercase tracking-[0.2em]">
+                Past Session Entry
+              </p>
             </div>
-          )}
+          ) : (
+            <>
+              {timerMode === 'pomodoro' && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-neon-purple/10 border border-neon-purple/20 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest text-neon-purple">
+                  <Sparkles size={8} />
+                  {pomoSession === 'study' ? 'Study Cycle (25m)' : 'Break Cycle (5m)'}
+                </div>
+              )}
 
-          <motion.div 
-            animate={isTimerRunning ? { scale: [1, 1.02, 1] } : {}}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="text-7xl font-mono font-black text-neon-cyan mb-2 tabular-nums tracking-tighter"
-          >
-            {formatTime(timerSeconds)}
-          </motion.div>
-          
-          <p className="text-[10px] font-black text-dark-bg-subtle uppercase tracking-[0.2em]">
-            {isTimerRunning ? 'Flow Session Active' : 'Engine Ready'}
-          </p>
+              <motion.div 
+                animate={isTimerRunning ? { scale: [1, 1.02, 1] } : {}}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="text-7xl font-mono font-black text-neon-cyan mb-2 tabular-nums tracking-tighter"
+              >
+                {formatTime(timerSeconds)}
+              </motion.div>
+              
+              <p className="text-[10px] font-black text-dark-bg-subtle uppercase tracking-[0.2em]">
+                {isTimerRunning ? 'Flow Session Active' : 'Engine Ready'}
+              </p>
+            </>
+          )}
         </div>
 
         <div className="flex gap-4">
-          {!isTimerRunning ? (
+          {timerMode === 'manual' ? (
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={logManualSession}
+              disabled={!activeSubjectId || manualMinutes <= 0}
+              className="flex-1 bg-neon-cyan text-black font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(0,242,255,0.2)] disabled:opacity-50 disabled:shadow-none"
+            >
+              <TimerIcon size={20} fill="currentColor" />
+              Log Past Session
+            </motion.button>
+          ) : !isTimerRunning ? (
             <motion.button 
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
