@@ -30,6 +30,17 @@ export default function StudyTimer({
   const [pomoSession, setPomoSession] = useState<'study' | 'break'>('study');
   const [deepFocus, setDeepFocus] = useState(false);
   const [selectedMood, setSelectedMood] = useState<'focused' | 'tired' | 'distracted' | 'motivated'>('focused');
+  const [loadWarningDismissed, setLoadWarningDismissed] = useState(false);
+
+  // Cognitive Load Balancer Logic
+  const getCognitiveLoadStatus = () => {
+    if (timerMode === 'pomodoro') return 'optimal'; // Pomodoro has built-in breaks
+    
+    // In classic mode, over 45 minutes (2700s) = high load
+    if (timerSeconds > 2700) return 'critical';
+    if (timerSeconds > 1800) return 'high'; // 30 mins
+    return 'optimal';
+  };
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -112,6 +123,42 @@ export default function StudyTimer({
           className="absolute inset-0 bg-neon-cyan/5 animate-pulse pointer-events-none"
         />
       )}
+
+      {/* Cognitive Load Balancer Warning */}
+      <AnimatePresence>
+        {isTimerRunning && getCognitiveLoadStatus() === 'critical' && !loadWarningDismissed && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="absolute top-4 left-4 right-4 z-50 p-4 bg-neon-purple/20 backdrop-blur-xl border border-neon-purple/40 rounded-xl shadow-[0_0_20px_rgba(188,19,254,0.3)] flex flex-col md:flex-row items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-neon-purple/20 rounded-full animate-pulse">
+                <ShieldAlert className="text-neon-purple" size={24} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-white uppercase tracking-widest">Cognitive Overload Detected</h4>
+                <p className="text-[10px] font-bold text-neon-purple mt-0.5">Continuous focus > 45m reduces retention by 30%. Scientifically suggested break: 10 mins.</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setLoadWarningDismissed(true)}
+                className="px-3 py-1.5 rounded-lg border border-dark-border text-[9px] font-black uppercase text-dark-bg-subtle hover:text-white transition-colors"
+              >
+                Dismiss
+              </button>
+              <button
+                onClick={stopTimer}
+                className="px-4 py-1.5 rounded-lg bg-neon-purple text-white text-[9px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(188,19,254,0.4)] hover:bg-white hover:text-neon-purple transition-all"
+              >
+                Take Break
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Deep Focus Lock Screen Blocker Overlay */}
       <AnimatePresence>

@@ -9,6 +9,7 @@ import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import MetricsTracker from './components/MetricsTracker';
 import ErrorBoundary from './components/ErrorBoundary';
 import { LayoutDashboard, Settings, LogOut, GraduationCap, BarChart3, MessageCircle, BookOpen, Users, Wifi, WifiOff, Zap, Sun, Moon, Coffee, ArrowRight, Shield, Cpu, BrainCircuit, Bell, Menu, Square, RefreshCw, Cloud, Mic, Trophy, Bot } from 'lucide-react';
+import AntiProcrastination from './components/AntiProcrastination';
 
 // Lazy load components
 const SubjectManager = lazy(() => import('./components/SubjectManager'));
@@ -621,7 +622,6 @@ function AppContent() {
         <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-neon-cyan/5 blur-[150px] pointer-events-none" />
         
         <div className="max-w-6xl mx-auto relative z-10">
-          {/* Persistent Floating Timer */}
           <AnimatePresence>
             {isTimerRunning && activeTab !== 'dashboard' && (
               <motion.div 
@@ -648,6 +648,15 @@ function AppContent() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Anti-Procrastination Engine */}
+          <AntiProcrastination 
+            isTimerRunning={isTimerRunning}
+            setTimerSeconds={setTimerSeconds}
+            setIsTimerRunning={setIsTimerRunning}
+            subjects={subjects}
+            setActiveSubjectId={setActiveSubjectId}
+          />
 
           <AnimatePresence mode="wait">
             <motion.div
