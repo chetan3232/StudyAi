@@ -105,33 +105,6 @@ export default function Community() {
     }
   }, []);
 
-  if (systemError) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
-        <motion.div 
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="p-8 glass-card border-red-500/30 bg-red-500/5 max-w-md"
-        >
-          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20">
-            <AlertTriangle className="text-red-500" size={32} />
-          </div>
-          <h2 className="text-2xl font-black tracking-tighter uppercase italic text-red-500 mb-4">System Interruption</h2>
-          <p className="text-dark-bg-subtle font-medium leading-relaxed mb-8">
-            {systemError}
-          </p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="flex items-center gap-2 mx-auto px-8 py-3 bg-red-500 text-white rounded-xl font-black uppercase text-xs tracking-widest hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all"
-          >
-            <RefreshCcw size={16} />
-            Reload Interface
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
-
   useEffect(() => {
     if (!activeGroupId) return;
 
@@ -188,7 +161,36 @@ export default function Community() {
     fetchMembers();
 
     return () => { unsubMessages(); unsubObjectives(); };
-  }, [activeGroupId]);
+  }, [activeGroupId, activeGroup]);
+
+  if (systemError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="p-8 glass-card border-red-500/30 bg-red-500/5 max-w-md"
+        >
+          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+            <AlertTriangle className="text-red-500" size={32} />
+          </div>
+          <h2 className="text-2xl font-black tracking-tighter uppercase italic text-red-500 mb-4">System Interruption</h2>
+          <p className="text-dark-bg-subtle font-medium leading-relaxed mb-8">
+            {systemError}
+          </p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2 mx-auto px-8 py-3 bg-red-500 text-white rounded-xl font-black uppercase text-xs tracking-widest hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all"
+          >
+            <RefreshCcw size={16} />
+            Reload Interface
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
+
 
   const createGroup = async () => {
     if (!newGroupName.trim() || !auth.currentUser) return;

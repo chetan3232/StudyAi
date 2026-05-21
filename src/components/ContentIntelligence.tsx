@@ -10,6 +10,36 @@ interface ContentIntelligenceProps {
   subjects: Subject[];
 }
 
+function QuizQuestion({ q, index }: { q: any, index: number }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  return (
+    <div className="space-y-4 p-5 bg-dark-bg/50 rounded-2xl border border-dark-border">
+      <p className="text-xs font-black text-dark-bg-text uppercase tracking-tight">{index + 1}. {q.question}</p>
+      <div className="grid grid-cols-1 gap-2">
+        {q.options.map((opt: string, j: number) => (
+          <button
+            key={j}
+            disabled={selected !== null}
+            className={`text-left p-4 rounded-xl text-[11px] font-bold transition-all border ${
+              selected === opt 
+                ? (opt === q.answer ? 'bg-neon-lime/20 border-neon-lime text-neon-lime' : 'bg-red-500/20 border-red-500 text-red-500')
+                : (selected !== null && opt === q.answer ? 'bg-neon-lime/10 border-neon-lime/50 text-neon-lime' : 'bg-dark-surface/50 border-dark-border text-dark-bg-muted hover:text-dark-bg-text hover:border-neon-purple/50')
+            }`}
+            onClick={() => setSelected(opt)}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+      {selected && (
+        <p className={`text-[10px] font-black uppercase tracking-widest ${selected === q.answer ? 'text-neon-lime' : 'text-red-500'}`}>
+          {selected === q.answer ? '✓ Correct Sequence' : `✗ Incorrect. Target: ${q.answer}`}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function ContentIntelligence({ subjects }: ContentIntelligenceProps) {
   const [input, setInput] = useState('');
   const [type, setType] = useState<'pdf' | 'video' | 'text'>('text');
@@ -294,35 +324,9 @@ export default function ContentIntelligence({ subjects }: ContentIntelligencePro
                 <h3 className="text-sm font-black tracking-tighter uppercase italic text-neon-purple">Neural Validation (Quiz)</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {result.quiz.map((q, i) => {
-                  const [selected, setSelected] = useState<string | null>(null);
-                  return (
-                    <div key={i} className="space-y-4 p-5 bg-dark-bg/50 rounded-2xl border border-dark-border">
-                      <p className="text-xs font-black text-dark-bg-text uppercase tracking-tight">{i + 1}. {q.question}</p>
-                      <div className="grid grid-cols-1 gap-2">
-                        {q.options.map((opt: string, j: number) => (
-                          <button
-                            key={j}
-                            disabled={selected !== null}
-                            className={`text-left p-4 rounded-xl text-[11px] font-bold transition-all border ${
-                              selected === opt 
-                                ? (opt === q.answer ? 'bg-neon-lime/20 border-neon-lime text-neon-lime' : 'bg-red-500/20 border-red-500 text-red-500')
-                                : (selected !== null && opt === q.answer ? 'bg-neon-lime/10 border-neon-lime/50 text-neon-lime' : 'bg-dark-surface/50 border-dark-border text-dark-bg-muted hover:text-dark-bg-text hover:border-neon-purple/50')
-                            }`}
-                            onClick={() => setSelected(opt)}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                      {selected && (
-                        <p className={`text-[10px] font-black uppercase tracking-widest ${selected === q.answer ? 'text-neon-lime' : 'text-red-500'}`}>
-                          {selected === q.answer ? '✓ Correct Sequence' : `✗ Incorrect. Target: ${q.answer}`}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
+                {result.quiz.map((q, i) => (
+                  <QuizQuestion key={i} q={q} index={i} />
+                ))}
               </div>
             </div>
           </motion.div>

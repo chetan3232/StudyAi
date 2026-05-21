@@ -395,12 +395,12 @@ function AppContent() {
               { icon: BrainCircuit, title: 'Neural Core', desc: 'Predictive analytics that map your learning trajectory.' },
               { icon: Shield, title: 'Secure Link', desc: 'End-to-end encrypted cognitive data storage.' },
               { icon: Cpu, title: 'Edge Logic', desc: 'Real-time processing for instant study insights.' }
-            ].map((feature, i) => (
+            ].map((feature) => (
               <motion.div
-                key={i}
+                key={feature.title}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + i * 0.1 }}
+                transition={{ delay: 0.2 }}
                 className="glass-card p-8 text-left group hover:border-neon-cyan/30 transition-all"
               >
                 <div className="p-3 bg-neon-cyan/10 rounded-xl border border-neon-cyan/20 w-fit mb-6 group-hover:scale-110 transition-transform">
@@ -419,8 +419,8 @@ function AppContent() {
               { label: 'Cognitive Syncs', value: '450K' },
               { label: 'Success Rate', value: '98.2%' },
               { label: 'Edge Latency', value: '12ms' }
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
+            ].map((stat) => (
+              <div key={stat.label} className="text-center">
                 <p className="text-2xl md:text-4xl font-black text-dark-bg-text tracking-tighter mb-1">{stat.value}</p>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-dark-bg-subtle">{stat.label}</p>
               </div>
