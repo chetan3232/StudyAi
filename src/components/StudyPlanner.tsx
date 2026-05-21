@@ -180,7 +180,7 @@ export default function StudyPlanner({ subjects, setActiveSubjectId, setTimerSec
         };
       });
 
-      const sortedTasks = [...adaptiveTasks].sort((a, b) => {
+      const sortedTasks = adaptiveTasks.toSorted((a, b) => {
         const subA = subjects.find(s => s.id === a.subjectId);
         const subB = subjects.find(s => s.id === b.subjectId);
         const priorityA = subA ? subA.priority : 1;
@@ -198,8 +198,9 @@ export default function StudyPlanner({ subjects, setActiveSubjectId, setTimerSec
       let selected = sortedTasks.slice(0, Math.max(1, maxSlots));
 
       if (examMode && subjects.length > 0) {
-        const sortedByMastery = [...subjects].sort((a, b) => (a.masteryScore || 50) - (b.masteryScore || 50));
-        const weakest = sortedByMastery[0];
+        const weakest = subjects.reduce((prev, curr) => 
+          (curr.masteryScore || 50) < (prev.masteryScore || 50) ? curr : prev
+        );
         if ((weakest.masteryScore || 50) < 65) {
           selected.push({
             subjectId: 'mock-test',

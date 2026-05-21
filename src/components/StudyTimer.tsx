@@ -12,6 +12,10 @@ interface StudyTimerProps {
   activeSubjectId: string;
   setActiveSubjectId: (id: string) => void;
   onSave: (mood: string) => Promise<void>;
+  timerMode: 'classic' | 'pomodoro' | 'manual';
+  setTimerMode: (m: 'classic' | 'pomodoro' | 'manual') => void;
+  pomoSession: 'study' | 'break';
+  setPomoSession: (s: 'study' | 'break') => void;
 }
 
 export default function StudyTimer({ 
@@ -22,12 +26,14 @@ export default function StudyTimer({
   setIsTimerRunning, 
   activeSubjectId, 
   setActiveSubjectId,
-  onSave 
+  onSave,
+  timerMode,
+  setTimerMode,
+  pomoSession,
+  setPomoSession
 }: StudyTimerProps) {
 
-  // Focus Modes: 'classic' | 'pomodoro' | 'manual'
-  const [timerMode, setTimerMode] = useState<'classic' | 'pomodoro' | 'manual'>('classic');
-  const [pomoSession, setPomoSession] = useState<'study' | 'break'>('study');
+  // Focus Modes
   const [manualMinutes, setManualMinutes] = useState(30);
   const [deepFocus, setDeepFocus] = useState(false);
   const [selectedMood, setSelectedMood] = useState<'focused' | 'tired' | 'distracted' | 'motivated'>('focused');
@@ -43,39 +49,7 @@ export default function StudyTimer({
     return 'optimal';
   };
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (isTimerRunning) {
-      interval = setInterval(() => {
-        if (timerMode === 'pomodoro') {
-          setTimerSeconds((prev) => {
-            if (prev <= 1) {
-              // Trigger Pomodoro phase swap
-              setIsTimerRunning(false);
-              const nextSession = pomoSession === 'study' ? 'break' : 'study';
-              setPomoSession(nextSession);
-              setTimerSeconds(nextSession === 'study' ? 25 * 60 : 5 * 60);
-              // Audio alert
-              try {
-                const audio = new Audio("https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg");
-                audio.volume = 0.5;
-                audio.play();
-              } catch (e) {
-                console.log("Audio play blocked", e);
-              }
-              return 0;
-            }
-            return prev - 1;
-          });
-        } else {
-          setTimerSeconds((prev) => prev + 1);
-        }
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isTimerRunning, timerMode, pomoSession]);
+  // Interval logic moved to App.tsx to ensure persistence across tabs
 
   const handleModeChange = (mode: 'classic' | 'pomodoro' | 'manual') => {
     if (isTimerRunning) return;

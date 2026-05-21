@@ -23,11 +23,11 @@ const QUICK_PROMPTS = [
 function TypingIndicator() {
   return (
     <div className="flex items-center gap-1.5 p-3 bg-dark-surface/50 border border-dark-border rounded-2xl rounded-tl-sm w-fit">
-      {[0, 1, 2].map(i => (
+      {[1, 2, 3].map(dotId => (
         <motion.div
-          key={i}
+          key={`dot-${dotId}`}
           animate={{ y: [0, -4, 0] }}
-          transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
+          transition={{ duration: 0.6, repeat: Infinity, delay: dotId * 0.15 }}
           className="w-1.5 h-1.5 bg-neon-cyan rounded-full"
         />
       ))}
@@ -69,7 +69,7 @@ function MessageBubble({ msg }: { msg: ChatTutorMessage & { id: string } }) {
             <ReactMarkdown>{msg.content}</ReactMarkdown>
           </div>
         )}
-        <p className={`text-[9px] mt-1.5 ${isUser ? 'text-neon-purple/50 text-right' : 'text-dark-bg-dim'}`}>
+        <p suppressHydrationWarning className={`text-[9px] mt-1.5 ${isUser ? 'text-neon-purple/50 text-right' : 'text-dark-bg-dim'}`}>
           {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </p>
       </div>
@@ -81,8 +81,8 @@ export default function AIChatTutor({ subjects }: AIChatTutorProps) {
   const [messages, setMessages] = useState<(ChatTutorMessage & { id: string })[]>([]);
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
-  const [logs, setLogs] = useState<StudyLog[]>([]);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const logsRef = useRef<StudyLog[]>([]);
+  const userProfileRef = useRef<any>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -95,7 +95,7 @@ export default function AIChatTutor({ subjects }: AIChatTutorProps) {
     if (!user) return;
     const unsub = onSnapshot(
       collection(db, 'users', user.uid, 'logs'),
-      (snap) => setLogs(snap.docs.map(d => d.data() as StudyLog).slice(-30)),
+      (snap) => { logsRef.current = snap.docs.map(d => d.data() as StudyLog).slice(-30); },
       (err) => handleFirestoreError(err, OperationType.LIST, 'logs')
     );
     return unsub;
@@ -105,7 +105,7 @@ export default function AIChatTutor({ subjects }: AIChatTutorProps) {
   useEffect(() => {
     if (!user) return;
     getDoc(doc(db, 'users', user.uid)).then(snap => {
-      if (snap.exists()) setUserProfile(snap.data());
+      if (snap.exists()) userProfileRef.current = snap.data();
     });
   }, [user]);
 
@@ -193,8 +193,8 @@ export default function AIChatTutor({ subjects }: AIChatTutorProps) {
 
       const response = await chatTutorResponse(history, {
         subjects,
-        logs,
-        targetExam: userProfile?.targetExam,
+        logs: logsRef.current,
+        targetExam: userProfileRef.current?.targetExam,
       });
 
       const assistantMsg: ChatTutorMessage & { id: string } = {

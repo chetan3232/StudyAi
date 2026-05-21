@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense, useRef } from 'react';
+import { useState, useEffect, lazy, Suspense, useRef, useSyncExternalStore } from 'react';
 import { db, auth, login, logout, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc, getDocFromServer, setDoc, getDoc } from 'firebase/firestore';
@@ -81,37 +81,54 @@ function AppContent() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'subjects' | 'analytics' | 'coach' | 'learning' | 'community' | 'reminders' | 'settings' | 'voice' | 'gamification' | 'tutor'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [forceOffline, setForceOffline] = useState(false);
   const [hasPendingWrites, setHasPendingWrites] = useState(false);
   const { tier, isPro } = useSubscription();
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    // Initial check
-    setIsOnline(navigator.onLine);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   // Persistent Timer State
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [activeSubjectId, setActiveSubjectId] = useState<string>('');
+  const [timerMode, setTimerMode] = useState<'classic' | 'pomodoro' | 'manual'>('classic');
+  const [pomoSession, setPomoSession] = useState<'study' | 'break'>('study');
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (isTimerRunning) {
       timerRef.current = setInterval(() => {
-        setTimerSeconds(s => s + 1);
+        if (timerMode === 'pomodoro') {
+          setTimerSeconds((prev) => {
+            if (prev <= 1) {
+              // Trigger Pomodoro phase swap
+              setIsTimerRunning(false);
+              const nextSession = pomoSession === 'study' ? 'break' : 'study';
+              setPomoSession(nextSession);
+              try {
+                const audio = new Audio("https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg");
+                audio.volume = 0.5;
+                audio.play();
+              } catch (e) {}
+              return nextSession === 'study' ? 25 * 60 : 5 * 60;
+            }
+            return prev - 1;
+          });
+        } else if (timerMode === 'manual') {
+          setTimerSeconds((prev) => {
+            if (prev <= 1) {
+              setIsTimerRunning(false);
+              try {
+                const audio = new Audio("https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg");
+                audio.volume = 0.5;
+                audio.play();
+              } catch (e) {}
+              return 0;
+            }
+            return prev - 1;
+          });
+        } else {
+          setTimerSeconds(s => s + 1);
+        }
       }, 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -119,7 +136,7 @@ function AppContent() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isTimerRunning]);
+  }, [isTimerRunning, timerMode, pomoSession]);
 
   const updateUserStats = async (durationSeconds: number) => {
     if (!user) return;
@@ -253,7 +270,10 @@ function AppContent() {
     let activeReminders: any[] = [];
     const q = query(collection(db, 'users', user.uid, 'reminders'), where('userId', '==', user.uid));
     const unsub = onSnapshot(q, (snap) => {
-      activeReminders = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter((r: any) => r.isActive);
+      activeReminders = snap.docs.flatMap(d => {
+        const data = d.data();
+        return data.isActive ? [{ id: d.id, ...data }] : [];
+      });
     }, (error) => {
       console.error("Reminders sync error:", error);
     });
@@ -533,7 +553,10 @@ function AppContent() {
           </div>
 
           <div 
+            role="button"
+            tabIndex={0}
             onClick={() => setForceOffline(!forceOffline)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setForceOffline(!forceOffline); }}
             className="mb-6 px-4 py-2 rounded-lg bg-dark-bg/50 border border-dark-border flex items-center justify-between cursor-pointer hover:bg-dark-surface/50 transition-colors"
           >
             <div className="flex items-center gap-2">
@@ -639,7 +662,7 @@ function AppContent() {
                   </span>
                 </div>
                 <button 
-                  onClick={saveStudyLog}
+                  onClick={() => saveStudyLog()}
                   className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl transition-all border border-red-500/20"
                   title="Terminate & Log"
                 >
@@ -686,6 +709,10 @@ function AppContent() {
                             activeSubjectId={activeSubjectId}
                             setActiveSubjectId={setActiveSubjectId}
                             onSave={saveStudyLog}
+                            timerMode={timerMode}
+                            setTimerMode={setTimerMode}
+                            pomoSession={pomoSession}
+                            setPomoSession={setPomoSession}
                           />
                           <StudyPlanner 
                             subjects={subjects} 

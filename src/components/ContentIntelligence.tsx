@@ -188,8 +188,11 @@ export default function ContentIntelligence({ subjects }: ContentIntelligencePro
 
         {type === 'pdf' && (
           <div 
+            role="button"
+            tabIndex={0}
             onClick={() => fileInputRef.current?.click()}
-            className="w-full h-40 bg-dark-bg/50 border-2 border-dashed border-dark-border hover:border-neon-cyan/50 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all mb-6"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+            className="w-full h-40 bg-dark-bg/50 border-2 border-dashed border-dark-border hover:border-neon-cyan/50 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all mb-6 focus:outline-none focus:border-neon-cyan/80"
           >
             <input 
               type="file" 

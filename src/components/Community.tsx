@@ -105,6 +105,8 @@ export default function Community() {
     }
   }, []);
 
+  const chatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     if (!activeGroupId) return;
 
@@ -116,7 +118,8 @@ export default function Community() {
     );
     const unsubMessages = onSnapshot(messagesQuery, (snap) => {
       setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as GroupMessage)));
-      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
+      chatTimeoutRef.current = setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     });
 
     // Objectives Listener
@@ -135,7 +138,7 @@ export default function Community() {
       const memberProfiles: UserProfile[] = [];
       const statsList: MemberStats[] = [];
       
-      for (const memberId of activeGroup.members) {
+      await Promise.all(activeGroup.members.map(async (memberId) => {
         const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', memberId)));
         if (!userDoc.empty) {
           const profile = userDoc.docs[0].data() as UserProfile;
@@ -149,18 +152,22 @@ export default function Community() {
               name: profile.name,
               xp: sData.xp,
               streak: sData.streak,
-              studyTime: 0 // Would need to aggregate logs for real study time
+              studyTime: 0
             });
           }
         }
-      }
+      }));
       setGroupMembers(memberProfiles);
       setMemberStats(statsList.sort((a, b) => b.xp - a.xp));
     };
 
     fetchMembers();
 
-    return () => { unsubMessages(); unsubObjectives(); };
+    return () => { 
+      unsubMessages(); 
+      unsubObjectives(); 
+      if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
+    };
   }, [activeGroupId, activeGroup]);
 
   if (systemError) {
@@ -659,7 +666,10 @@ export default function Community() {
                       {objectives.map(obj => (
                         <div 
                           key={obj.id} 
+                          role="button"
+                          tabIndex={0}
                           onClick={() => toggleObjective(obj.id, obj.completed)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleObjective(obj.id, obj.completed); }}
                           className={`flex items-center justify-between p-5 rounded-2xl border cursor-pointer transition-all ${
                             obj.completed 
                             ? 'bg-neon-lime/5 border-neon-lime/20 opacity-60' 

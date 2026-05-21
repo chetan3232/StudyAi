@@ -118,7 +118,7 @@ export default function TestGenerator({ subjects }: TestGeneratorProps) {
                   {q.options.map((opt: string) => (
                     <button
                       key={opt}
-                      onClick={() => setAnswers({ ...answers, [q.id]: opt })}
+                      onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt }))}
                       className={`text-left p-5 rounded-2xl border transition-all text-xs font-bold ${
                         answers[q.id] === opt 
                         ? 'bg-neon-purple/20 border-neon-purple text-dark-bg-text shadow-[0_0_15px_rgba(188,19,254,0.1)]' 

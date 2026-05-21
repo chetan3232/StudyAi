@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Zap, Play, X } from 'lucide-react';
 import { Subject } from '../types';
@@ -11,6 +11,42 @@ interface AntiProcrastinationProps {
   setActiveSubjectId: (id: string) => void;
 }
 
+const idleStore = (() => {
+  let listeners = new Set<() => void>();
+  let lastActive = Date.now();
+  let idleTime = 0;
+
+  const emit = () => {
+    const current = Math.floor((Date.now() - lastActive) / 1000);
+    if (current !== idleTime) {
+      idleTime = current;
+      listeners.forEach(l => l());
+    }
+  };
+
+  const reset = () => {
+    lastActive = Date.now();
+    emit();
+  };
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('mousemove', reset);
+    window.addEventListener('keydown', reset);
+    window.addEventListener('click', reset);
+    window.addEventListener('scroll', reset);
+    setInterval(emit, 1000);
+  }
+
+  return {
+    subscribe: (l: () => void) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    getSnapshot: () => idleTime,
+    reset
+  };
+})();
+
 export default function AntiProcrastination({
   isTimerRunning,
   setTimerSeconds,
@@ -19,43 +55,16 @@ export default function AntiProcrastination({
   setActiveSubjectId
 }: AntiProcrastinationProps) {
   const [showTrigger, setShowTrigger] = useState(false);
-  const [idleTime, setIdleTime] = useState(0);
+  const idleTime = useSyncExternalStore(idleStore.subscribe, idleStore.getSnapshot);
 
   useEffect(() => {
-    let idleInterval: NodeJS.Timeout;
-    
-    const resetIdle = () => setIdleTime(0);
-
-    // Track user activity
-    window.addEventListener('mousemove', resetIdle);
-    window.addEventListener('keydown', resetIdle);
-    window.addEventListener('click', resetIdle);
-    window.addEventListener('scroll', resetIdle);
-
-    idleInterval = setInterval(() => {
-      setIdleTime((prev) => prev + 1);
-    }, 1000);
-
-    return () => {
-      window.removeEventListener('mousemove', resetIdle);
-      window.removeEventListener('keydown', resetIdle);
-      window.removeEventListener('click', resetIdle);
-      window.removeEventListener('scroll', resetIdle);
-      clearInterval(idleInterval);
-    };
-  }, []);
-
-  useEffect(() => {
-    // If user has been idle for 3 minutes (180s) and timer is NOT running, trigger the popup
-    // (For demo purposes, we can set it to 120s)
     if (!isTimerRunning && idleTime > 120 && subjects.length > 0 && !showTrigger) {
       setShowTrigger(true);
     }
     
-    // Auto-hide if timer starts
-    if (isTimerRunning) {
+    if (isTimerRunning && showTrigger) {
       setShowTrigger(false);
-      setIdleTime(0);
+      idleStore.reset();
     }
   }, [idleTime, isTimerRunning, subjects, showTrigger]);
 
@@ -66,7 +75,7 @@ export default function AntiProcrastination({
     setTimerSeconds(5 * 60);
     setIsTimerRunning(true);
     setShowTrigger(false);
-    setIdleTime(0);
+    idleStore.reset();
   };
 
   return (
@@ -81,7 +90,7 @@ export default function AntiProcrastination({
           <button 
             onClick={() => {
               setShowTrigger(false);
-              setIdleTime(0);
+              idleStore.reset();
             }}
             className="absolute top-3 right-3 text-dark-bg-subtle hover:text-white transition-colors"
           >

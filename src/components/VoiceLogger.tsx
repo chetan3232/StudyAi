@@ -28,7 +28,7 @@ export default function VoiceLogger({ subjects }: VoiceLoggerProps) {
   const [recentLogs, setRecentLogs] = useState<VoiceLog[]>([]);
   const [isSupported, setIsSupported] = useState(true);
   const [parsedPreview, setParsedPreview] = useState<{ subject: string; duration: number; notes: string } | null>(null);
-  const [waveAmplitudes, setWaveAmplitudes] = useState<number[]>(Array(12).fill(4));
+  const [waveAmplitudes, setWaveAmplitudes] = useState<number[]>(() => Array(12).fill(4));
 
   const recognitionRef = useRef<any>(null);
   const waveIntervalRef = useRef<NodeJS.Timeout | null>(null);
